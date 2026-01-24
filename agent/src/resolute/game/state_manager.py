@@ -19,7 +19,6 @@ from resolute.db.models import (
     World,
 )
 from resolute.db.seed_data import get_default_song, get_random_exercise
-from resolute.db.session import get_async_session
 from resolute.game.exercise_timer import ExerciseTimer, get_exercise_timer
 from resolute.game.rewards import RewardCalculator
 
@@ -624,27 +623,3 @@ class GameStateManager:
             .where(PlayerProgress.reference_id == reference_id)
         )
         return result.scalar_one_or_none()
-
-
-# Context manager for using GameStateManager with auto-session
-class GameStateContext:
-    """Context manager that provides GameStateManager with a database session."""
-
-    def __init__(self):
-        self._session_context = None
-        self._session = None
-        self.manager = None
-
-    async def __aenter__(self) -> GameStateManager:
-        self._session_context = get_async_session()
-        self._session = await self._session_context.__aenter__()
-        self.manager = GameStateManager(self._session)
-        return self.manager
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self._session_context.__aexit__(exc_type, exc_val, exc_tb)
-
-
-def get_game_state_context() -> GameStateContext:
-    """Get a new game state context manager."""
-    return GameStateContext()
