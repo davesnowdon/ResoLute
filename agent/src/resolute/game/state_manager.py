@@ -1,11 +1,14 @@
-"""Central game state manager for ResoLute."""
+"""Central game state manager for ResoLute.
+
+All database operations are synchronous to avoid greenlet/async boundary issues
+when tools are invoked by LangGraph's ReAct agent.
+"""
 
 from datetime import datetime
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import Session, selectinload
 
 from resolute.db.models import (
     Exercise,
@@ -15,18 +18,22 @@ from resolute.db.models import (
     PlayerProgress,
     ProgressState,
     ProgressType,
+    Song,
     SongSegment,
     World,
 )
-from resolute.db.seed_data import get_default_song, get_random_exercise
 from resolute.game.exercise_timer import ExerciseTimer, get_exercise_timer
 from resolute.game.rewards import RewardCalculator
 
 
 class GameStateManager:
-    """Central manager for all game state operations."""
+    """Central manager for all game state operations.
 
-    def __init__(self, session: AsyncSession | None = None):
+    Uses synchronous database operations to work correctly in all contexts,
+    including LangGraph tool invocations.
+    """
+
+    def __init__(self, session: Session):
         self._session = session
         self._timer = get_exercise_timer()
 
@@ -35,41 +42,33 @@ class GameStateManager:
         """Get the exercise timer."""
         return self._timer
 
-    async def _get_session(self) -> AsyncSession:
-        """Get a database session."""
-        if self._session is not None:
-            return self._session
-        raise RuntimeError("No session available. Use async context manager.")
-
     # Player Management
 
-    async def get_or_create_player(self, player_id: str) -> Player:
+    def get_or_create_player(self, player_id: str) -> Player:
         """Get an existing player or create a new one."""
-        session = await self._get_session()
-        result = await session.execute(select(Player).where(Player.id == player_id))
+        result = self._session.execute(select(Player).where(Player.id == player_id))
         player = result.scalar_one_or_none()
 
         if player is None:
             player = Player(id=player_id, name=f"Bard {player_id[:8]}")
-            session.add(player)
-            await session.flush()
+            self._session.add(player)
+            self._session.flush()
 
         return player
 
-    async def get_player(self, player_id: str) -> Player | None:
+    def get_player(self, player_id: str) -> Player | None:
         """Get a player by ID."""
-        session = await self._get_session()
-        result = await session.execute(select(Player).where(Player.id == player_id))
+        result = self._session.execute(select(Player).where(Player.id == player_id))
         return result.scalar_one_or_none()
 
-    async def get_player_stats(self, player_id: str) -> dict | None:
+    def get_player_stats(self, player_id: str) -> dict | None:
         """Get player stats as a dictionary."""
-        player = await self.get_player(player_id)
+        player = self.get_player(player_id)
         if player is None:
             return None
         return player.to_dict()
 
-    async def update_player_stats(
+    def update_player_stats(
         self,
         player_id: str,
         xp_delta: int = 0,
@@ -79,8 +78,7 @@ class GameStateManager:
         skill_delta: int = 0,
     ) -> Player | None:
         """Update player stats and check for level up."""
-        session = await self._get_session()
-        player = await self.get_player(player_id)
+        player = self.get_player(player_id)
         if player is None:
             return None
 
@@ -103,29 +101,28 @@ class GameStateManager:
         if leveled_up:
             player.level = new_level
 
-        await session.flush()
+        self._session.flush()
         return player
 
     # World Management
 
-    async def get_player_world(self, player_id: str) -> World | None:
+    def get_player_world(self, player_id: str) -> World | None:
         """Get the player's world with all locations."""
-        session = await self._get_session()
-        result = await session.execute(
+        result = self._session.execute(
             select(World)
             .where(World.player_id == player_id)
             .options(selectinload(World.locations).selectinload(Location.segments))
         )
         return result.scalar_one_or_none()
 
-    async def get_or_generate_world(self, player_id: str) -> dict:
+    def get_or_generate_world(self, player_id: str) -> dict:
         """Get player's world or trigger generation if none exists."""
-        world = await self.get_player_world(player_id)
+        world = self.get_player_world(player_id)
         if world is None:
             return {"needs_generation": True, "player_id": player_id}
         return {"needs_generation": False, "world": world.to_dict()}
 
-    async def create_world(
+    def create_world(
         self,
         player_id: str,
         name: str,
@@ -136,10 +133,8 @@ class GameStateManager:
         locations: list[dict],
     ) -> World:
         """Create a new world for a player with locations."""
-        session = await self._get_session()
-
         # Ensure player exists
-        player = await self.get_or_create_player(player_id)
+        player = self.get_or_create_player(player_id)
 
         # Create world
         world = World(
@@ -150,8 +145,8 @@ class GameStateManager:
             final_monster=final_monster,
             rescue_target=rescue_target,
         )
-        session.add(world)
-        await session.flush()
+        self._session.add(world)
+        self._session.flush()
 
         # Create locations
         for i, loc_data in enumerate(locations):
@@ -164,33 +159,31 @@ class GameStateManager:
                 order_index=i,
                 is_unlocked=i == 0,  # First location is unlocked
             )
-            session.add(location)
+            self._session.add(location)
 
-        await session.flush()
+        self._session.flush()
 
         # Get the default song and distribute segments across locations
-        await self._distribute_song_segments(world.id)
+        self._distribute_song_segments(world.id)
 
         # Set player's starting location
-        first_location = await self._get_first_location(world.id)
+        first_location = self._get_first_location(world.id)
         if first_location:
             player.current_location_id = first_location.id
-            await session.flush()
+            self._session.flush()
 
         # Reload world with all relationships
-        return await self.get_player_world(player_id)
+        return self.get_player_world(player_id)
 
-    async def _distribute_song_segments(self, world_id: int) -> None:
+    def _distribute_song_segments(self, world_id: int) -> None:
         """Distribute song segments across world locations."""
-        session = await self._get_session()
-
         # Get the default song
-        song = await get_default_song(session)
+        song = self._get_default_song()
         if song is None:
             return
 
         # Get world locations (excluding the dungeon which is the final destination)
-        result = await session.execute(
+        result = self._session.execute(
             select(Location)
             .where(Location.world_id == world_id)
             .where(Location.location_type != LocationType.DUNGEON.value)
@@ -199,7 +192,7 @@ class GameStateManager:
         locations = list(result.scalars().all())
 
         # Get song segments
-        result = await session.execute(
+        result = self._session.execute(
             select(SongSegment)
             .where(SongSegment.song_id == song.id)
             .order_by(SongSegment.segment_index)
@@ -211,12 +204,11 @@ class GameStateManager:
             if i < len(locations):
                 segment.location_id = locations[i].id
 
-        await session.flush()
+        self._session.flush()
 
-    async def _get_first_location(self, world_id: int) -> Location | None:
+    def _get_first_location(self, world_id: int) -> Location | None:
         """Get the first location in a world."""
-        session = await self._get_session()
-        result = await session.execute(
+        result = self._session.execute(
             select(Location)
             .where(Location.world_id == world_id)
             .order_by(Location.order_index)
@@ -224,16 +216,39 @@ class GameStateManager:
         )
         return result.scalar_one_or_none()
 
+    def _get_default_song(self) -> Song | None:
+        """Get the default final song."""
+        result = self._session.execute(
+            select(Song).where(Song.is_final_song.is_(True)).limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    def _get_random_exercise(
+        self, exercise_type: str | None = None, difficulty: int | None = None
+    ) -> Exercise | None:
+        """Get a random exercise, optionally filtered by type and difficulty."""
+        from sqlalchemy import func
+
+        query = select(Exercise)
+        if exercise_type:
+            query = query.where(Exercise.exercise_type == exercise_type)
+        if difficulty:
+            query = query.where(Exercise.difficulty >= difficulty - 1)
+            query = query.where(Exercise.difficulty <= difficulty + 1)
+
+        query = query.order_by(func.random()).limit(1)
+        result = self._session.execute(query)
+        return result.scalar_one_or_none()
+
     # Location Management
 
-    async def get_current_location(self, player_id: str) -> dict | None:
+    def get_current_location(self, player_id: str) -> dict | None:
         """Get the player's current location with available actions."""
-        session = await self._get_session()
-        player = await self.get_player(player_id)
+        player = self.get_player(player_id)
         if player is None or player.current_location_id is None:
             return None
 
-        result = await session.execute(
+        result = self._session.execute(
             select(Location)
             .where(Location.id == player.current_location_id)
             .options(selectinload(Location.segments))
@@ -243,7 +258,7 @@ class GameStateManager:
             return None
 
         # Get available destinations (unlocked locations + next locked location)
-        result = await session.execute(
+        result = self._session.execute(
             select(Location)
             .where(Location.world_id == location.world_id)
             .where(Location.is_unlocked.is_(True))
@@ -253,7 +268,7 @@ class GameStateManager:
         destinations = list(result.scalars().all())
 
         # Also include the next locked location (allows progression)
-        result = await session.execute(
+        result = self._session.execute(
             select(Location)
             .where(Location.world_id == location.world_id)
             .where(Location.is_unlocked.is_(False))
@@ -264,10 +279,10 @@ class GameStateManager:
         if next_locked and next_locked.id != location.id:
             destinations.append(next_locked)
 
-        # Check for uncollected segments using batch query (avoids greenlet issues)
+        # Check for uncollected segments using batch query
         segment_ids = [s.id for s in location.segments]
         if segment_ids:
-            result = await session.execute(
+            result = self._session.execute(
                 select(PlayerProgress.reference_id)
                 .where(PlayerProgress.player_id == player_id)
                 .where(PlayerProgress.progress_type == ProgressType.SEGMENT.value)
@@ -279,49 +294,48 @@ class GameStateManager:
             collected_ids = set()
 
         uncollected_segments = [
-            segment.to_dict() for segment in location.segments if segment.id not in collected_ids
+            segment.to_dict()
+            for segment in location.segments
+            if segment.id not in collected_ids
         ]
 
         return {
             "location": location.to_dict(),
-            "available_destinations": [d.to_dict(include_segments=False) for d in destinations],
+            "available_destinations": [
+                d.to_dict(include_segments=False) for d in destinations
+            ],
             "uncollected_segments": uncollected_segments,
             "can_travel": len(destinations) > 0,
             "has_tavern": location.location_type == LocationType.TAVERN.value,
         }
 
-    async def get_location_by_id(self, location_id: int) -> Location | None:
+    def get_location_by_id(self, location_id: int) -> Location | None:
         """Get a location by ID."""
-        session = await self._get_session()
-        result = await session.execute(select(Location).where(Location.id == location_id))
+        result = self._session.execute(
+            select(Location).where(Location.id == location_id)
+        )
         return result.scalar_one_or_none()
 
     # Travel & Exercise
 
-    async def start_travel(self, player_id: str, destination_id: int) -> dict[str, Any]:
+    def start_travel(self, player_id: str, destination_id: int) -> dict[str, Any]:
         """Start travel to a destination (begins exercise timer)."""
-        session = await self._get_session()
-        player = await self.get_player(player_id)
+        player = self.get_player(player_id)
         if player is None:
             return {"error": "Player not found"}
 
-        destination = await self.get_location_by_id(destination_id)
+        destination = self.get_location_by_id(destination_id)
         if destination is None:
             return {"error": "Destination not found"}
 
-        # Note: We allow travel to locked destinations - the exercise completion
-        # will unlock the destination when the player arrives
-
         # Get a random exercise appropriate for the path
-        exercise = await get_random_exercise(
-            session,
+        exercise = self._get_random_exercise(
             exercise_type=destination.exercise_focus,
             difficulty=player.level + 1,
         )
 
         if exercise is None:
-            # Fallback to any exercise
-            exercise = await get_random_exercise(session)
+            exercise = self._get_random_exercise()
 
         if exercise is None:
             return {"error": "No exercises available"}
@@ -342,14 +356,12 @@ class GameStateManager:
             "destination": destination.to_dict(include_segments=False),
         }
 
-    async def check_exercise(self, player_id: str) -> dict | None:
+    def check_exercise(self, player_id: str) -> dict | None:
         """Check the status of a player's current exercise."""
         return self._timer.check_session(player_id)
 
-    async def complete_exercise(self, player_id: str) -> dict[str, Any]:
+    def complete_exercise(self, player_id: str) -> dict[str, Any]:
         """Complete an exercise and award rewards."""
-        session = await self._get_session()
-
         exercise_session = self._timer.get_session(player_id)
         if exercise_session is None:
             return {"error": "No active exercise"}
@@ -361,14 +373,14 @@ class GameStateManager:
             }
 
         # Get the exercise
-        result = await session.execute(
+        result = self._session.execute(
             select(Exercise).where(Exercise.id == exercise_session.exercise_id)
         )
         exercise = result.scalar_one_or_none()
         if exercise is None:
             return {"error": "Exercise not found"}
 
-        player = await self.get_player(player_id)
+        player = self.get_player(player_id)
         if player is None:
             return {"error": "Player not found"}
 
@@ -376,12 +388,12 @@ class GameStateManager:
         reward = RewardCalculator.calculate_exercise_reward(
             exercise=exercise,
             player_level=player.level,
-            completion_quality=1.0,  # Full completion
+            completion_quality=1.0,
         )
 
         # Update player stats
         old_level = player.level
-        await self.update_player_stats(
+        self.update_player_stats(
             player_id=player_id,
             xp_delta=reward.xp_gained,
             gold_delta=reward.gold_gained,
@@ -392,15 +404,14 @@ class GameStateManager:
         # Update location if traveling
         if exercise_session.destination_location_id:
             player.current_location_id = exercise_session.destination_location_id
-            # Unlock next location
-            await self._unlock_next_location(player_id)
-            await session.flush()
+            self._unlock_next_location(player_id)
+            self._session.flush()
 
         # Complete the session
         self._timer.complete_session(player_id)
 
         # Check for level up
-        player = await self.get_player(player_id)
+        player = self.get_player(player_id)
         reward.level_up = player.level > old_level
         reward.new_level = player.level if reward.level_up else None
 
@@ -411,34 +422,30 @@ class GameStateManager:
             "player": player.to_dict(),
         }
 
-    async def _unlock_next_location(self, player_id: str) -> None:
+    def _unlock_next_location(self, player_id: str) -> None:
         """Unlock the next location in sequence."""
-        session = await self._get_session()
-        world = await self.get_player_world(player_id)
+        world = self.get_player_world(player_id)
         if world is None:
             return
 
-        # Find the first locked location
         for location in sorted(world.locations, key=lambda x: x.order_index):
             if not location.is_unlocked:
                 location.is_unlocked = True
-                await session.flush()
+                self._session.flush()
                 break
 
     # Song Segments
 
-    async def collect_segment(self, player_id: str, segment_id: int) -> dict[str, Any]:
+    def collect_segment(self, player_id: str, segment_id: int) -> dict[str, Any]:
         """Collect a song segment."""
-        session = await self._get_session()
-
-        # Get segment
-        result = await session.execute(select(SongSegment).where(SongSegment.id == segment_id))
+        result = self._session.execute(
+            select(SongSegment).where(SongSegment.id == segment_id)
+        )
         segment = result.scalar_one_or_none()
         if segment is None:
             return {"error": "Segment not found"}
 
-        # Check if player is at the right location
-        player = await self.get_player(player_id)
+        player = self.get_player(player_id)
         if player is None:
             return {"error": "Player not found"}
 
@@ -446,7 +453,7 @@ class GameStateManager:
             return {"error": "You must be at the segment's location to collect it"}
 
         # Check if already collected
-        progress = await self._get_progress(player_id, ProgressType.SEGMENT.value, segment_id)
+        progress = self._get_progress(player_id, ProgressType.SEGMENT.value, segment_id)
         if progress and progress.state == ProgressState.COMPLETED.value:
             return {"error": "Segment already collected"}
 
@@ -457,23 +464,32 @@ class GameStateManager:
                 progress_type=ProgressType.SEGMENT.value,
                 reference_id=segment_id,
             )
-            session.add(progress)
+            self._session.add(progress)
 
         progress.state = ProgressState.COMPLETED.value
         progress.completed_at = datetime.utcnow()
-        await session.flush()
+        self._session.flush()
 
         return {
             "status": "segment_collected",
             "segment": segment.to_dict(),
         }
 
-    async def get_inventory(self, player_id: str) -> dict[str, Any]:
-        """Get player's collected segments and inventory."""
-        session = await self._get_session()
+    def _get_progress(
+        self, player_id: str, progress_type: str, reference_id: int
+    ) -> PlayerProgress | None:
+        """Get a specific progress entry."""
+        result = self._session.execute(
+            select(PlayerProgress)
+            .where(PlayerProgress.player_id == player_id)
+            .where(PlayerProgress.progress_type == progress_type)
+            .where(PlayerProgress.reference_id == reference_id)
+        )
+        return result.scalar_one_or_none()
 
-        # Get collected segments
-        result = await session.execute(
+    def get_inventory(self, player_id: str) -> dict[str, Any]:
+        """Get player's collected segments and inventory."""
+        result = self._session.execute(
             select(PlayerProgress)
             .where(PlayerProgress.player_id == player_id)
             .where(PlayerProgress.progress_type == ProgressType.SEGMENT.value)
@@ -483,62 +499,57 @@ class GameStateManager:
 
         collected_segments = []
         for progress in segment_progress:
-            result = await session.execute(
+            result = self._session.execute(
                 select(SongSegment).where(SongSegment.id == progress.reference_id)
             )
             segment = result.scalar_one_or_none()
             if segment:
                 collected_segments.append(segment.to_dict())
 
-        # Get default song info
-        song = await get_default_song(session)
+        song = self._get_default_song()
 
         return {
             "collected_segments": collected_segments,
             "total_segments": song.total_segments if song else 4,
             "song_title": song.title if song else "The Hero's Ballad",
-            "can_perform_final": len(collected_segments) == (song.total_segments if song else 4),
+            "can_perform_final": len(collected_segments)
+            == (song.total_segments if song else 4),
         }
 
     # Performance
 
-    async def perform_at_tavern(
+    def perform_at_tavern(
         self, player_id: str, performance_score: float = 1.0
     ) -> dict[str, Any]:
         """Perform at a tavern to earn gold and reputation."""
-        await self._get_session()  # Ensure session is available
-        player = await self.get_player(player_id)
+        player = self.get_player(player_id)
         if player is None:
             return {"error": "Player not found"}
 
-        # Check if at a tavern
         if player.current_location_id is None:
             return {"error": "You must be at a location"}
 
-        location = await self.get_location_by_id(player.current_location_id)
+        location = self.get_location_by_id(player.current_location_id)
         if location is None or location.location_type != LocationType.TAVERN.value:
             return {"error": "You must be at a tavern to perform"}
 
-        # Get inventory to determine song difficulty
-        inventory = await self.get_inventory(player_id)
+        inventory = self.get_inventory(player_id)
         segments_count = len(inventory["collected_segments"])
         song_difficulty = 1 + (segments_count // 2)
 
-        # Calculate rewards
         rewards = RewardCalculator.calculate_performance_reward(
             song_difficulty=song_difficulty,
             player_level=player.level,
             performance_score=performance_score,
         )
 
-        # Update player
-        await self.update_player_stats(
+        self.update_player_stats(
             player_id=player_id,
             gold_delta=rewards["gold_gained"],
             reputation_delta=rewards["reputation_gained"],
         )
 
-        player = await self.get_player(player_id)
+        player = self.get_player(player_id)
 
         return {
             "status": "performance_complete",
@@ -546,10 +557,10 @@ class GameStateManager:
             "player": player.to_dict(),
         }
 
-    async def check_final_quest_ready(self, player_id: str) -> dict[str, Any]:
+    def check_final_quest_ready(self, player_id: str) -> dict[str, Any]:
         """Check if the player is ready for the final quest."""
-        inventory = await self.get_inventory(player_id)
-        world = await self.get_player_world(player_id)
+        inventory = self.get_inventory(player_id)
+        world = self.get_player_world(player_id)
 
         return {
             "ready": inventory["can_perform_final"],
@@ -559,14 +570,11 @@ class GameStateManager:
             "rescue_target": world.rescue_target if world else None,
         }
 
-    async def complete_final_quest(
+    def complete_final_quest(
         self, player_id: str, performance_score: float = 1.0
     ) -> dict[str, Any]:
         """Complete the final quest by performing the complete song."""
-        await self._get_session()  # Ensure session is available
-
-        # Check if ready
-        ready_check = await self.check_final_quest_ready(player_id)
+        ready_check = self.check_final_quest_ready(player_id)
         if not ready_check["ready"]:
             return {
                 "error": "Not all segments collected",
@@ -574,15 +582,14 @@ class GameStateManager:
                 "segments_required": ready_check["segments_required"],
             }
 
-        player = await self.get_player(player_id)
+        player = self.get_player(player_id)
         if player is None:
             return {"error": "Player not found"}
 
-        world = await self.get_player_world(player_id)
+        world = self.get_player_world(player_id)
         if world is None:
             return {"error": "World not found"}
 
-        # Calculate final rewards
         rewards = RewardCalculator.calculate_final_quest_reward(
             player_level=player.level,
             segments_collected=ready_check["segments_collected"],
@@ -590,15 +597,14 @@ class GameStateManager:
         )
 
         if rewards["victory"]:
-            # Update player
-            await self.update_player_stats(
+            self.update_player_stats(
                 player_id=player_id,
                 xp_delta=rewards["xp_gained"],
                 gold_delta=rewards["gold_gained"],
                 reputation_delta=rewards["reputation_gained"],
             )
 
-        player = await self.get_player(player_id)
+        player = self.get_player(player_id)
 
         return {
             "status": "game_complete" if rewards["victory"] else "quest_failed",
@@ -608,18 +614,3 @@ class GameStateManager:
             "rewards": rewards,
             "player": player.to_dict(),
         }
-
-    # Progress Tracking
-
-    async def _get_progress(
-        self, player_id: str, progress_type: str, reference_id: int
-    ) -> PlayerProgress | None:
-        """Get a specific progress entry."""
-        session = await self._get_session()
-        result = await session.execute(
-            select(PlayerProgress)
-            .where(PlayerProgress.player_id == player_id)
-            .where(PlayerProgress.progress_type == progress_type)
-            .where(PlayerProgress.reference_id == reference_id)
-        )
-        return result.scalar_one_or_none()

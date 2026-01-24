@@ -5,8 +5,8 @@ from typing import Any
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
-from resolute.db.session import get_sync_session
-from resolute.game.sync_state_manager import SyncGameStateManager
+from resolute.db.session import get_session
+from resolute.game.state_manager import GameStateManager
 
 
 # Input schemas for tools that need parameters
@@ -39,8 +39,8 @@ def create_tools_for_player(player_id: str) -> list:
         """Get the current stats and progress for the player.
         Returns player level, XP, gold, reputation, and skill levels.
         """
-        with get_sync_session() as session:
-            state_manager = SyncGameStateManager(session)
+        with get_session() as session:
+            state_manager = GameStateManager(session)
             stats = state_manager.get_player_stats(player_id)
             if stats is None:
                 return {"error": "Player not found"}
@@ -51,8 +51,8 @@ def create_tools_for_player(player_id: str) -> list:
         Shows where the player is, available travel destinations,
         and any collectible song segments.
         """
-        with get_sync_session() as session:
-            state_manager = SyncGameStateManager(session)
+        with get_session() as session:
+            state_manager = GameStateManager(session)
             location = state_manager.get_current_location(player_id)
             if location is None:
                 return {"error": "Player has no current location. World may need to be generated."}
@@ -63,8 +63,8 @@ def create_tools_for_player(player_id: str) -> list:
         This begins a timed practice exercise that must be completed
         before arriving at the destination.
         """
-        with get_sync_session() as session:
-            state_manager = SyncGameStateManager(session)
+        with get_session() as session:
+            state_manager = GameStateManager(session)
             location_info = state_manager.get_current_location(player_id)
             if location_info is None:
                 return {"error": "Cannot determine current location"}
@@ -90,8 +90,8 @@ def create_tools_for_player(player_id: str) -> list:
         """Check the status of the current exercise.
         Shows time remaining and whether the exercise can be completed.
         """
-        with get_sync_session() as session:
-            state_manager = SyncGameStateManager(session)
+        with get_session() as session:
+            state_manager = GameStateManager(session)
             status = state_manager.check_exercise(player_id)
             if status is None:
                 return {"status": "no_active_exercise", "message": "No exercise in progress"}
@@ -102,8 +102,8 @@ def create_tools_for_player(player_id: str) -> list:
         Can only be called after the exercise timer has finished.
         Awards XP, gold, and skill bonuses.
         """
-        with get_sync_session() as session:
-            state_manager = SyncGameStateManager(session)
+        with get_session() as session:
+            state_manager = GameStateManager(session)
             result = state_manager.complete_exercise(player_id)
             return result
 
@@ -112,8 +112,8 @@ def create_tools_for_player(player_id: str) -> list:
         Song segments are pieces of the legendary Hero's Ballad
         that must be collected to complete the final quest.
         """
-        with get_sync_session() as session:
-            state_manager = SyncGameStateManager(session)
+        with get_session() as session:
+            state_manager = GameStateManager(session)
             result = state_manager.collect_segment(player_id, segment_id)
             return result
 
@@ -122,8 +122,8 @@ def create_tools_for_player(player_id: str) -> list:
         Shows all segments collected and whether the player is
         ready for the final quest.
         """
-        with get_sync_session() as session:
-            state_manager = SyncGameStateManager(session)
+        with get_session() as session:
+            state_manager = GameStateManager(session)
             inventory = state_manager.get_inventory(player_id)
             return inventory
 
@@ -132,8 +132,8 @@ def create_tools_for_player(player_id: str) -> list:
         Must be at a tavern location. Performance rewards scale
         with the number of song segments collected.
         """
-        with get_sync_session() as session:
-            state_manager = SyncGameStateManager(session)
+        with get_session() as session:
+            state_manager = GameStateManager(session)
             result = state_manager.perform_at_tavern(player_id)
             return result
 
@@ -142,8 +142,8 @@ def create_tools_for_player(player_id: str) -> list:
         The final quest requires all song segments to be collected.
         Shows progress toward the goal.
         """
-        with get_sync_session() as session:
-            state_manager = SyncGameStateManager(session)
+        with get_session() as session:
+            state_manager = GameStateManager(session)
             result = state_manager.check_final_quest_ready(player_id)
             return result
 
@@ -152,8 +152,8 @@ def create_tools_for_player(player_id: str) -> list:
         Performs the complete Hero's Ballad to charm the monster.
         Requires all song segments to be collected.
         """
-        with get_sync_session() as session:
-            state_manager = SyncGameStateManager(session)
+        with get_session() as session:
+            state_manager = GameStateManager(session)
             result = state_manager.complete_final_quest(player_id)
             return result
 

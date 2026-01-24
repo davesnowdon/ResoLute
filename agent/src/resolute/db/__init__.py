@@ -12,8 +12,8 @@ from resolute.db.models import (
 )
 from resolute.db.session import (
     create_tables,
-    get_async_session,
     get_engine,
+    get_session,
 )
 
 __all__ = [
@@ -26,6 +26,6 @@ __all__ = [
     "SongSegment",
     "PlayerProgress",
     "get_engine",
-    "get_async_session",
+    "get_session",
     "create_tables",
 ]

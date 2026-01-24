@@ -1,7 +1,6 @@
 """Seed data for pre-defined exercises and songs."""
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from resolute.db.models import Exercise, ExerciseType, Song, SongSegment
@@ -221,10 +220,10 @@ DEFAULT_SONG = {
 }
 
 
-async def seed_exercises_and_songs(session: AsyncSession) -> None:
+def seed_exercises_and_songs(session: Session) -> None:
     """Seed the database with pre-defined exercises and the default song."""
     # Check if exercises already exist
-    result = await session.execute(select(Exercise).limit(1))
+    result = session.execute(select(Exercise).limit(1))
     if result.scalar_one_or_none() is not None:
         return  # Already seeded
 
@@ -238,21 +237,21 @@ async def seed_exercises_and_songs(session: AsyncSession) -> None:
     segments_data = song_data.pop("segments")
     song = Song(**song_data)
     session.add(song)
-    await session.flush()  # Get the song ID
+    session.flush()  # Get the song ID
 
     # Add segments
     for segment_data in segments_data:
         segment = SongSegment(song_id=song.id, **segment_data)
         session.add(segment)
 
-    await session.commit()
+    session.commit()
 
 
-async def get_exercises_by_type(
-    session: AsyncSession, exercise_type: str, max_difficulty: int = 10
+def get_exercises_by_type(
+    session: Session, exercise_type: str, max_difficulty: int = 10
 ) -> list[Exercise]:
     """Get exercises filtered by type and difficulty."""
-    result = await session.execute(
+    result = session.execute(
         select(Exercise)
         .where(Exercise.exercise_type == exercise_type)
         .where(Exercise.difficulty <= max_difficulty)
@@ -261,12 +260,10 @@ async def get_exercises_by_type(
     return list(result.scalars().all())
 
 
-async def get_random_exercise(
-    session: AsyncSession, exercise_type: str | None = None, difficulty: int | None = None
+def get_random_exercise(
+    session: Session, exercise_type: str | None = None, difficulty: int | None = None
 ) -> Exercise | None:
     """Get a random exercise, optionally filtered by type and difficulty."""
-    from sqlalchemy import func
-
     query = select(Exercise)
     if exercise_type:
         query = query.where(Exercise.exercise_type == exercise_type)
@@ -276,59 +273,30 @@ async def get_random_exercise(
         query = query.where(Exercise.difficulty <= difficulty + 1)
 
     query = query.order_by(func.random()).limit(1)
-    result = await session.execute(query)
-    return result.scalar_one_or_none()
-
-
-async def get_default_song(session: AsyncSession) -> Song | None:
-    """Get the default final song."""
-    result = await session.execute(select(Song).where(Song.is_final_song.is_(True)).limit(1))
-    return result.scalar_one_or_none()
-
-
-# Synchronous versions for use in greenlet contexts (LangGraph tools)
-
-
-def get_random_exercise_sync(
-    session: Session, exercise_type: str | None = None, difficulty: int | None = None
-) -> Exercise | None:
-    """Get a random exercise (sync version for greenlet contexts)."""
-    query = select(Exercise)
-    if exercise_type:
-        query = query.where(Exercise.exercise_type == exercise_type)
-    if difficulty:
-        query = query.where(Exercise.difficulty >= difficulty - 1)
-        query = query.where(Exercise.difficulty <= difficulty + 1)
-
-    query = query.order_by(func.random()).limit(1)
     result = session.execute(query)
     return result.scalar_one_or_none()
 
 
-def get_default_song_sync(session: Session) -> Song | None:
-    """Get the default final song (sync version for greenlet contexts)."""
-    result = session.execute(select(Song).where(Song.is_final_song.is_(True)).limit(1))
+def get_default_song(session: Session) -> Song | None:
+    """Get the default final song."""
+    result = session.execute(
+        select(Song).where(Song.is_final_song.is_(True)).limit(1)
+    )
     return result.scalar_one_or_none()
 
 
 if __name__ == "__main__":
-    import asyncio
+    from resolute.db.session import get_session
 
-    from resolute.db.session import create_tables, get_async_session
+    with get_session() as session:
+        seed_exercises_and_songs(session)
+        print("Database seeded successfully!")
 
-    async def main():
-        await create_tables()
-        async with get_async_session() as session:
-            await seed_exercises_and_songs(session)
-            print("Database seeded successfully!")
+        # Verify
+        result = session.execute(select(Exercise))
+        exercises = result.scalars().all()
+        print(f"Created {len(exercises)} exercises")
 
-            # Verify
-            result = await session.execute(select(Exercise))
-            exercises = result.scalars().all()
-            print(f"Created {len(exercises)} exercises")
-
-            result = await session.execute(select(Song))
-            songs = result.scalars().all()
-            print(f"Created {len(songs)} songs")
-
-    asyncio.run(main())
+        result = session.execute(select(Song))
+        songs = result.scalars().all()
+        print(f"Created {len(songs)} songs")

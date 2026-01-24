@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from resolute.agent import MentorAgent
 from resolute.config import get_settings
-from resolute.db.session import get_async_session, init_db
+from resolute.db.session import get_session, init_db
 from resolute.game.state_manager import GameStateManager
 from resolute.game.world_generator import get_world_generator
 from resolute.server.messages import (
@@ -47,12 +47,12 @@ class ConnectionManager:
         self.active_connections[player_id] = websocket
 
         # Check if player has a world
-        async with get_async_session() as session:
+        with get_session() as session:
             state_manager = GameStateManager(session)
-            player = await state_manager.get_or_create_player(player_id)
-            world_result = await state_manager.get_or_generate_world(player_id)
+            player = state_manager.get_or_create_player(player_id)
+            world_result = state_manager.get_or_generate_world(player_id)
 
-            # Create agent - tools create their own sessions to avoid greenlet issues
+            # Create agent - tools create their own sessions
             agent = MentorAgent(
                 player_id=player_id,
                 player_name=player.name,
@@ -117,21 +117,21 @@ async def health_check():
 
 async def handle_world_request(player_id: str) -> ServerMessage:
     """Handle world state request, generating if needed."""
-    async with get_async_session() as session:
+    with get_session() as session:
         state_manager = GameStateManager(session)
-        world_result = await state_manager.get_or_generate_world(player_id)
+        world_result = state_manager.get_or_generate_world(player_id)
 
         if world_result.get("needs_generation"):
-            # Generate a new world
+            # Generate a new world (async AI call)
             generator = get_world_generator()
-            player = await state_manager.get_player(player_id)
+            player = state_manager.get_player(player_id)
             player_name = player.name if player else f"Bard {player_id[:8]}"
 
             try:
                 world_data = await generator.generate_world(player_id, player_name)
 
                 # Create the world in the database
-                world = await state_manager.create_world(
+                world = state_manager.create_world(
                     player_id=player_id,
                     name=world_data["name"],
                     theme=world_data["theme"],
@@ -149,13 +149,13 @@ async def handle_world_request(player_id: str) -> ServerMessage:
             return world_state_message(world_result["world"])
 
 
-async def handle_travel_request(player_id: str, destination: str) -> ServerMessage:
+def handle_travel_request(player_id: str, destination: str) -> ServerMessage:
     """Handle travel request to start an exercise."""
-    async with get_async_session() as session:
+    with get_session() as session:
         state_manager = GameStateManager(session)
 
         # Get available destinations
-        location_info = await state_manager.get_current_location(player_id)
+        location_info = state_manager.get_current_location(player_id)
         if location_info is None:
             return error_message("You have no current location")
 
@@ -170,7 +170,7 @@ async def handle_travel_request(player_id: str, destination: str) -> ServerMessa
             available = [d["name"] for d in destinations]
             return error_message(f"Unknown destination. Available: {', '.join(available)}")
 
-        result = await state_manager.start_travel(player_id, dest_match["id"])
+        result = state_manager.start_travel(player_id, dest_match["id"])
 
         if "error" in result:
             return error_message(result["error"])
@@ -178,19 +178,19 @@ async def handle_travel_request(player_id: str, destination: str) -> ServerMessa
         return exercise_state_message(result["session"])
 
 
-async def handle_exercise_request(player_id: str, action: str) -> ServerMessage:
+def handle_exercise_request(player_id: str, action: str) -> ServerMessage:
     """Handle exercise actions (check/complete)."""
-    async with get_async_session() as session:
+    with get_session() as session:
         state_manager = GameStateManager(session)
 
         if action == "check":
-            status = await state_manager.check_exercise(player_id)
+            status = state_manager.check_exercise(player_id)
             if status is None:
                 return error_message("No active exercise")
             return exercise_state_message(status)
 
         elif action == "complete":
-            result = await state_manager.complete_exercise(player_id)
+            result = state_manager.complete_exercise(player_id)
             if "error" in result:
                 return error_message(result["error"])
 
@@ -201,11 +201,11 @@ async def handle_exercise_request(player_id: str, action: str) -> ServerMessage:
             return error_message(f"Unknown exercise action: {action}")
 
 
-async def handle_collect_request(player_id: str, segment_id: int) -> ServerMessage:
+def handle_collect_request(player_id: str, segment_id: int) -> ServerMessage:
     """Handle segment collection."""
-    async with get_async_session() as session:
+    with get_session() as session:
         state_manager = GameStateManager(session)
-        result = await state_manager.collect_segment(player_id, segment_id)
+        result = state_manager.collect_segment(player_id, segment_id)
 
         if "error" in result:
             return error_message(result["error"])
@@ -213,11 +213,11 @@ async def handle_collect_request(player_id: str, segment_id: int) -> ServerMessa
         return segment_collected_message(result)
 
 
-async def handle_perform_request(player_id: str) -> ServerMessage:
+def handle_perform_request(player_id: str) -> ServerMessage:
     """Handle tavern performance."""
-    async with get_async_session() as session:
+    with get_session() as session:
         state_manager = GameStateManager(session)
-        result = await state_manager.perform_at_tavern(player_id)
+        result = state_manager.perform_at_tavern(player_id)
 
         if "error" in result:
             return error_message(result["error"])
@@ -225,13 +225,13 @@ async def handle_perform_request(player_id: str) -> ServerMessage:
         return performance_result_message(result)
 
 
-async def handle_final_quest_request(player_id: str, action: str) -> ServerMessage:
+def handle_final_quest_request(player_id: str, action: str) -> ServerMessage:
     """Handle final quest actions."""
-    async with get_async_session() as session:
+    with get_session() as session:
         state_manager = GameStateManager(session)
 
         if action == "check":
-            result = await state_manager.check_final_quest_ready(player_id)
+            result = state_manager.check_final_quest_ready(player_id)
             content = (
                 "You are ready for the final quest!"
                 if result["ready"]
@@ -244,7 +244,7 @@ async def handle_final_quest_request(player_id: str, action: str) -> ServerMessa
             )
 
         elif action == "attempt":
-            result = await state_manager.complete_final_quest(player_id)
+            result = state_manager.complete_final_quest(player_id)
             if "error" in result:
                 return error_message(result["error"])
             return game_complete_message(result)
@@ -253,11 +253,11 @@ async def handle_final_quest_request(player_id: str, action: str) -> ServerMessa
             return error_message(f"Unknown final quest action: {action}")
 
 
-async def handle_inventory_request(player_id: str) -> ServerMessage:
+def handle_inventory_request(player_id: str) -> ServerMessage:
     """Handle inventory request."""
-    async with get_async_session() as session:
+    with get_session() as session:
         state_manager = GameStateManager(session)
-        inventory = await state_manager.get_inventory(player_id)
+        inventory = state_manager.get_inventory(player_id)
         return inventory_update_message(inventory)
 
 
@@ -328,11 +328,11 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
                 response = await handle_world_request(player_id)
 
             elif msg.type == "travel":
-                response = await handle_travel_request(player_id, msg.content)
+                response = handle_travel_request(player_id, msg.content)
 
             elif msg.type == "exercise":
                 action = msg.content or msg.data.get("action", "check")
-                response = await handle_exercise_request(player_id, action)
+                response = handle_exercise_request(player_id, action)
 
             elif msg.type == "collect":
                 segment_id = msg.data.get("segment_id")
@@ -343,21 +343,23 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
                         response = error_message("segment_id required")
                         await websocket.send_json(response.model_dump())
                         continue
-                response = await handle_collect_request(player_id, segment_id)
+                response = handle_collect_request(player_id, segment_id)
 
             elif msg.type == "perform":
-                response = await handle_perform_request(player_id)
+                response = handle_perform_request(player_id)
 
             elif msg.type == "final_quest":
                 action = msg.content or msg.data.get("action", "check")
-                response = await handle_final_quest_request(player_id, action)
+                response = handle_final_quest_request(player_id, action)
 
             elif msg.type == "inventory":
-                response = await handle_inventory_request(player_id)
+                response = handle_inventory_request(player_id)
 
             elif msg.type == "quest":
                 # Legacy quest handling - route through chat
-                response = await handle_chat_with_context(player_id, f"Quest action: {msg.content}")
+                response = await handle_chat_with_context(
+                    player_id, f"Quest action: {msg.content}"
+                )
 
             else:
                 response = error_message(f"Unknown message type: {msg.type}")
