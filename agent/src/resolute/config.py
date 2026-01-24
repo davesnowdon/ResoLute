@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     host: str = Field(default="0.0.0.0", description="Server host")
     port: int = Field(default=8000, description="Server port")
 
+    # Database
+    database_url: str = Field(
+        default="sqlite+aiosqlite:///./resolute.db",
+        description="Database connection URL",
+    )
+
     @property
     def has_google_api_key(self) -> bool:
         """Check if Google API key is configured."""

@@ -3,12 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 from resolute.agent.prompts import MENTOR_SYSTEM_PROMPT
-from resolute.agent.tools import (
-    award_achievement,
-    get_mentor_tools,
-    get_player_stats,
-    suggest_practice_exercise,
-)
+from resolute.agent.tools import get_tool_definitions
 
 
 class TestPrompts:
@@ -28,44 +23,30 @@ class TestPrompts:
 class TestTools:
     """Tests for agent tools."""
 
-    def test_get_player_stats(self):
-        """Test get_player_stats tool."""
-        result = get_player_stats.invoke({"player_id": "test-player"})
-        assert result["player_id"] == "test-player"
-        assert "level" in result
-        assert "xp" in result
-        assert "skills" in result
+    def test_get_tool_definitions_returns_list(self):
+        """Test that get_tool_definitions returns a list of tool definitions."""
+        definitions = get_tool_definitions()
+        assert isinstance(definitions, list)
+        assert len(definitions) == 10  # Updated count for new tools
 
-    def test_suggest_practice_exercise_rhythm(self):
-        """Test suggest_practice_exercise for rhythm."""
-        result = suggest_practice_exercise.invoke({"skill": "rhythm", "difficulty": 1})
-        assert result["skill"] == "rhythm"
-        assert result["difficulty"] == 1
-        assert "exercise" in result
-        assert result["xp_reward"] == 10
-
-    def test_suggest_practice_exercise_clamps_difficulty(self):
-        """Test that difficulty is clamped to valid range."""
-        result = suggest_practice_exercise.invoke({"skill": "melody", "difficulty": 10})
-        assert result["difficulty"] == 5  # Clamped to max
-
-        result = suggest_practice_exercise.invoke({"skill": "melody", "difficulty": 0})
-        assert result["difficulty"] == 1  # Clamped to min
-
-    def test_award_achievement(self):
-        """Test award_achievement tool."""
-        result = award_achievement.invoke(
-            {"player_id": "test-player", "achievement": "First Steps"}
-        )
-        assert result["player_id"] == "test-player"
-        assert result["achievement"] == "First Steps"
-        assert result["awarded"] is True
-
-    def test_get_mentor_tools_returns_list(self):
-        """Test that get_mentor_tools returns a list of tools."""
-        tools = get_mentor_tools()
-        assert isinstance(tools, list)
-        assert len(tools) == 3
+    def test_tool_definitions_have_names(self):
+        """Test that all tool definitions have names."""
+        definitions = get_tool_definitions()
+        expected_names = [
+            "get_player_stats",
+            "get_current_location",
+            "start_travel",
+            "check_exercise",
+            "complete_exercise",
+            "collect_song_segment",
+            "get_inventory",
+            "perform_at_tavern",
+            "check_final_quest_ready",
+            "attempt_final_quest",
+        ]
+        tool_names = [d["name"] for d in definitions]
+        for name in expected_names:
+            assert name in tool_names, f"Missing tool: {name}"
 
 
 class TestMentorAgent:
@@ -79,9 +60,36 @@ class TestMentorAgent:
 
         mock_create_agent.return_value = MagicMock()
 
-        agent = MentorAgent(player_name="TestPlayer")
+        agent = MentorAgent(player_id="test-123", player_name="TestPlayer")
 
+        assert agent.player_id == "test-123"
         assert agent.player_name == "TestPlayer"
         assert "TestPlayer" in agent.system_prompt
         mock_llm.assert_called_once()
+        mock_create_agent.assert_called_once()
+
+    @patch("resolute.agent.mentor.ChatGoogleGenerativeAI")
+    @patch("resolute.agent.mentor.create_react_agent")
+    def test_mentor_agent_default_name(self, mock_create_agent, mock_llm):
+        """Test that MentorAgent uses default name when none provided."""
+        from resolute.agent.mentor import MentorAgent
+
+        mock_create_agent.return_value = MagicMock()
+
+        agent = MentorAgent(player_id="test-456")
+
+        assert agent.player_name == "Adventurer"
+        assert "Adventurer" in agent.system_prompt
+
+    @patch("resolute.agent.mentor.ChatGoogleGenerativeAI")
+    @patch("resolute.agent.mentor.create_react_agent")
+    def test_mentor_agent_without_state_manager(self, mock_create_agent, mock_llm):
+        """Test that MentorAgent works without state_manager (no tools)."""
+        from resolute.agent.mentor import MentorAgent
+
+        mock_create_agent.return_value = MagicMock()
+
+        agent = MentorAgent(player_id="test-789")
+
+        assert agent.tools == []
         mock_create_agent.assert_called_once()

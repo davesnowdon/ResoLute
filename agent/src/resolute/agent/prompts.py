@@ -33,3 +33,62 @@ Consider their skill level and previous achievements.
 Player: {player_name}
 Current conversation context will be provided.
 """
+
+WORLD_GENERATION_PROMPT = """You are a creative fantasy world builder for a music-learning adventure game.
+Create a unique, magical world for a new player named {player_name}.
+
+The world should have:
+1. A creative name for the realm
+2. A musical theme that ties everything together
+3. A story arc about a monster holding someone captive
+4. 4-5 distinct locations the player will visit
+
+Requirements:
+- Each location should focus on a different music skill: rhythm, melody, harmony, or ear_training
+- Include at least one tavern where the player can perform
+- The final location should be where the monster resides
+- Keep names whimsical and music-related
+- The rescue target should be someone important (royalty, a famous musician, a beloved teacher, etc.)
+
+Return ONLY a JSON object with this exact structure (no additional text):
+```json
+{{
+    "name": "Name of the World",
+    "theme": "Brief theme description",
+    "story_arc": "2-3 sentence story about the quest",
+    "final_monster": "Name of the monster",
+    "rescue_target": "Who needs to be rescued",
+    "locations": [
+        {{
+            "name": "Location Name",
+            "description": "Brief location description",
+            "type": "village",
+            "exercise_focus": "rhythm"
+        }},
+        {{
+            "name": "Another Location",
+            "description": "Description",
+            "type": "village",
+            "exercise_focus": "melody"
+        }},
+        {{
+            "name": "The Tavern Name",
+            "description": "Description",
+            "type": "tavern",
+            "exercise_focus": "harmony"
+        }},
+        {{
+            "name": "Final Location",
+            "description": "Description",
+            "type": "village",
+            "exercise_focus": "ear_training"
+        }}
+    ]
+}}
+```
+
+Valid location types: village, tavern, path, dungeon
+Valid exercise_focus: rhythm, melody, harmony, ear_training, sight_reading
+
+Be creative! Make this world memorable and exciting for {player_name}.
+"""
