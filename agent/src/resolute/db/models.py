@@ -70,9 +70,7 @@ class Player(Base):
         ForeignKey("locations.id"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, onupdate=datetime.utcnow
-    )
+    updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     worlds: Mapped[list["World"]] = relationship(back_populates="player", cascade="all, delete")
@@ -128,7 +126,9 @@ class World(Base):
             "story_arc": self.story_arc,
             "final_monster": self.final_monster,
             "rescue_target": self.rescue_target,
-            "locations": [loc.to_dict() for loc in sorted(self.locations, key=lambda x: x.order_index)],
+            "locations": [
+                loc.to_dict() for loc in sorted(self.locations, key=lambda x: x.order_index)
+            ],
         }
 
 
@@ -150,9 +150,13 @@ class Location(Base):
     world: Mapped["World"] = relationship(back_populates="locations")
     segments: Mapped[list["SongSegment"]] = relationship(back_populates="location")
 
-    def to_dict(self) -> dict:
-        """Convert location to dictionary for API responses."""
-        return {
+    def to_dict(self, include_segments: bool = True) -> dict:
+        """Convert location to dictionary for API responses.
+
+        Args:
+            include_segments: Whether to include segments (requires eager loading in async).
+        """
+        result = {
             "id": self.id,
             "name": self.name,
             "description": self.description,
@@ -160,8 +164,10 @@ class Location(Base):
             "exercise_focus": self.exercise_focus,
             "order_index": self.order_index,
             "is_unlocked": self.is_unlocked,
-            "segments": [seg.to_dict() for seg in self.segments],
         }
+        if include_segments:
+            result["segments"] = [seg.to_dict() for seg in self.segments]
+        return result
 
 
 class Exercise(Base):
@@ -220,7 +226,9 @@ class Song(Base):
             "difficulty": self.difficulty,
             "total_segments": self.total_segments,
             "is_final_song": self.is_final_song,
-            "segments": [seg.to_dict() for seg in sorted(self.segments, key=lambda s: s.segment_index)],
+            "segments": [
+                seg.to_dict() for seg in sorted(self.segments, key=lambda s: s.segment_index)
+            ],
         }
 
 

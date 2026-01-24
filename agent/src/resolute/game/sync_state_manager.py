@@ -109,7 +109,7 @@ class SyncGameStateManager:
 
         return {
             "location": location.to_dict(),
-            "available_destinations": [d.to_dict() for d in destinations],
+            "available_destinations": [d.to_dict(include_segments=False) for d in destinations],
             "uncollected_segments": uncollected_segments,
             "can_travel": len(destinations) > 0,
             "has_tavern": location.location_type == LocationType.TAVERN.value,
@@ -158,7 +158,7 @@ class SyncGameStateManager:
             "status": "travel_started",
             "exercise": exercise.to_dict(),
             "session": exercise_session.to_dict(),
-            "destination": destination.to_dict(),
+            "destination": destination.to_dict(include_segments=False),
         }
 
     def check_exercise(self, player_id: str) -> dict | None:
