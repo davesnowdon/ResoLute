@@ -8,7 +8,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import create_react_agent
 
 from resolute.agent.prompts import MENTOR_SYSTEM_PROMPT
-from resolute.agent.tools import get_mentor_tools
+from resolute.agent.tools import create_tools_for_player
 from resolute.config import get_settings
 from resolute.tracing import get_tracer
 
@@ -18,12 +18,18 @@ logger = logging.getLogger(__name__)
 class MentorAgent:
     """AI mentor agent that guides players through their musical journey."""
 
-    def __init__(self, player_name: str = "Adventurer"):
+    def __init__(
+        self,
+        player_id: str,
+        player_name: str = "Adventurer",
+    ):
         """Initialize the MentorAgent.
 
         Args:
-            player_name: The name of the player being mentored.
+            player_id: The unique identifier for the player.
+            player_name: The display name of the player being mentored.
         """
+        self.player_id = player_id
         self.player_name = player_name
         self.settings = get_settings()
 
@@ -34,14 +40,14 @@ class MentorAgent:
             temperature=0.7,
         )
 
-        # Get tools
-        self.tools = get_mentor_tools()
-
         # Create memory for conversation persistence
         self.memory = MemorySaver()
 
         # Create system prompt
         self.system_prompt = MENTOR_SYSTEM_PROMPT.format(player_name=player_name)
+
+        # Create tools - each tool creates its own session to avoid greenlet issues
+        self.tools = create_tools_for_player(player_id)
 
         # Create the ReAct agent
         self.agent = create_react_agent(
@@ -53,7 +59,7 @@ class MentorAgent:
         # Get tracer if available
         self.tracer = get_tracer()
 
-        logger.info(f"MentorAgent initialized for player: {player_name}")
+        logger.info(f"MentorAgent initialized for player: {player_name} (ID: {player_id})")
 
     def _get_config(self, thread_id: str) -> dict:
         """Get the configuration for agent invocation.
@@ -82,7 +88,7 @@ class MentorAgent:
             The agent's response.
         """
         if thread_id is None:
-            thread_id = self.player_name
+            thread_id = self.player_id
 
         config = self._get_config(thread_id)
 
