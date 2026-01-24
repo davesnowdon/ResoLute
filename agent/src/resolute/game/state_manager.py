@@ -47,9 +47,7 @@ class GameStateManager:
     async def get_or_create_player(self, player_id: str) -> Player:
         """Get an existing player or create a new one."""
         session = await self._get_session()
-        result = await session.execute(
-            select(Player).where(Player.id == player_id)
-        )
+        result = await session.execute(select(Player).where(Player.id == player_id))
         player = result.scalar_one_or_none()
 
         if player is None:
@@ -62,9 +60,7 @@ class GameStateManager:
     async def get_player(self, player_id: str) -> Player | None:
         """Get a player by ID."""
         session = await self._get_session()
-        result = await session.execute(
-            select(Player).where(Player.id == player_id)
-        )
+        result = await session.execute(select(Player).where(Player.id == player_id))
         return result.scalar_one_or_none()
 
     async def get_player_stats(self, player_id: str) -> dict | None:
@@ -269,14 +265,23 @@ class GameStateManager:
         if next_locked and next_locked.id != location.id:
             destinations.append(next_locked)
 
-        # Check for uncollected segments
-        uncollected_segments = []
-        for segment in location.segments:
-            progress = await self._get_progress(
-                player_id, ProgressType.SEGMENT.value, segment.id
+        # Check for uncollected segments using batch query (avoids greenlet issues)
+        segment_ids = [s.id for s in location.segments]
+        if segment_ids:
+            result = await session.execute(
+                select(PlayerProgress.reference_id)
+                .where(PlayerProgress.player_id == player_id)
+                .where(PlayerProgress.progress_type == ProgressType.SEGMENT.value)
+                .where(PlayerProgress.reference_id.in_(segment_ids))
+                .where(PlayerProgress.state == ProgressState.COMPLETED.value)
             )
-            if progress is None or progress.state != ProgressState.COMPLETED.value:
-                uncollected_segments.append(segment.to_dict())
+            collected_ids = {row[0] for row in result.all()}
+        else:
+            collected_ids = set()
+
+        uncollected_segments = [
+            segment.to_dict() for segment in location.segments if segment.id not in collected_ids
+        ]
 
         return {
             "location": location.to_dict(),
@@ -289,16 +294,12 @@ class GameStateManager:
     async def get_location_by_id(self, location_id: int) -> Location | None:
         """Get a location by ID."""
         session = await self._get_session()
-        result = await session.execute(
-            select(Location).where(Location.id == location_id)
-        )
+        result = await session.execute(select(Location).where(Location.id == location_id))
         return result.scalar_one_or_none()
 
     # Travel & Exercise
 
-    async def start_travel(
-        self, player_id: str, destination_id: int
-    ) -> dict[str, Any]:
+    async def start_travel(self, player_id: str, destination_id: int) -> dict[str, Any]:
         """Start travel to a destination (begins exercise timer)."""
         session = await self._get_session()
         player = await self.get_player(player_id)
@@ -432,9 +433,7 @@ class GameStateManager:
         session = await self._get_session()
 
         # Get segment
-        result = await session.execute(
-            select(SongSegment).where(SongSegment.id == segment_id)
-        )
+        result = await session.execute(select(SongSegment).where(SongSegment.id == segment_id))
         segment = result.scalar_one_or_none()
         if segment is None:
             return {"error": "Segment not found"}

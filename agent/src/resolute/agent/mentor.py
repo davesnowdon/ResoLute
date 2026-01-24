@@ -10,7 +10,6 @@ from langgraph.prebuilt import create_react_agent
 from resolute.agent.prompts import MENTOR_SYSTEM_PROMPT
 from resolute.agent.tools import create_tools_for_player
 from resolute.config import get_settings
-from resolute.game.state_manager import GameStateManager
 from resolute.tracing import get_tracer
 
 logger = logging.getLogger(__name__)
@@ -23,18 +22,15 @@ class MentorAgent:
         self,
         player_id: str,
         player_name: str = "Adventurer",
-        state_manager: GameStateManager | None = None,
     ):
         """Initialize the MentorAgent.
 
         Args:
             player_id: The unique identifier for the player.
             player_name: The display name of the player being mentored.
-            state_manager: Optional game state manager for database operations.
         """
         self.player_id = player_id
         self.player_name = player_name
-        self.state_manager = state_manager
         self.settings = get_settings()
 
         # Initialize LLM
@@ -50,11 +46,8 @@ class MentorAgent:
         # Create system prompt
         self.system_prompt = MENTOR_SYSTEM_PROMPT.format(player_name=player_name)
 
-        # Create tools if state_manager is provided
-        if state_manager is not None:
-            self.tools = create_tools_for_player(state_manager, player_id)
-        else:
-            self.tools = []
+        # Create tools - each tool creates its own session to avoid greenlet issues
+        self.tools = create_tools_for_player(player_id)
 
         # Create the ReAct agent
         self.agent = create_react_agent(
@@ -67,22 +60,6 @@ class MentorAgent:
         self.tracer = get_tracer()
 
         logger.info(f"MentorAgent initialized for player: {player_name} (ID: {player_id})")
-
-    def update_state_manager(self, state_manager: GameStateManager) -> None:
-        """Update the state manager and recreate tools.
-
-        Args:
-            state_manager: The new game state manager instance.
-        """
-        self.state_manager = state_manager
-        self.tools = create_tools_for_player(state_manager, self.player_id)
-
-        # Recreate the agent with new tools
-        self.agent = create_react_agent(
-            model=self.llm,
-            tools=self.tools,
-            checkpointer=self.memory,
-        )
 
     def _get_config(self, thread_id: str) -> dict:
         """Get the configuration for agent invocation.

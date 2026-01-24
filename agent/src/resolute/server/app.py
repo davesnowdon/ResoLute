@@ -52,12 +52,10 @@ class ConnectionManager:
             player = await state_manager.get_or_create_player(player_id)
             world_result = await state_manager.get_or_generate_world(player_id)
 
-            # Create agent with state manager reference
-            # Note: We'll update the state_manager per-request since sessions are short-lived
+            # Create agent - tools create their own sessions to avoid greenlet issues
             agent = MentorAgent(
                 player_id=player_id,
                 player_name=player.name,
-                state_manager=state_manager,
             )
             self.agents[player_id] = agent
 
@@ -269,18 +267,14 @@ async def handle_chat_with_context(player_id: str, message: str) -> ServerMessag
     if not agent:
         return error_message("Agent not found for this session")
 
-    # Update agent's state manager with a fresh session
-    async with get_async_session() as session:
-        state_manager = GameStateManager(session)
-        agent.update_state_manager(state_manager)
+    # Tools create their own sessions to avoid greenlet issues with LangGraph
+    response_content = await agent.achat(message, thread_id=player_id)
 
-        response_content = await agent.achat(message, thread_id=player_id)
-
-        return ServerMessage(
-            type="response",
-            content=response_content,
-            metadata={"message_type": "chat"},
-        )
+    return ServerMessage(
+        type="response",
+        content=response_content,
+        metadata={"message_type": "chat"},
+    )
 
 
 @app.websocket("/ws/{player_id}")
@@ -363,9 +357,7 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
 
             elif msg.type == "quest":
                 # Legacy quest handling - route through chat
-                response = await handle_chat_with_context(
-                    player_id, f"Quest action: {msg.content}"
-                )
+                response = await handle_chat_with_context(player_id, f"Quest action: {msg.content}")
 
             else:
                 response = error_message(f"Unknown message type: {msg.type}")

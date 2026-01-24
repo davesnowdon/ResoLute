@@ -83,13 +83,14 @@ class TestMentorAgent:
 
     @patch("resolute.agent.mentor.ChatGoogleGenerativeAI")
     @patch("resolute.agent.mentor.create_react_agent")
-    def test_mentor_agent_without_state_manager(self, mock_create_agent, mock_llm):
-        """Test that MentorAgent works without state_manager (no tools)."""
+    def test_mentor_agent_has_tools(self, mock_create_agent, mock_llm):
+        """Test that MentorAgent always has tools (each tool creates its own session)."""
         from resolute.agent.mentor import MentorAgent
 
         mock_create_agent.return_value = MagicMock()
 
         agent = MentorAgent(player_id="test-789")
 
-        assert agent.tools == []
+        # Tools are always created - they manage their own sessions
+        assert len(agent.tools) == 10
         mock_create_agent.assert_called_once()

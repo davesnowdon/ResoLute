@@ -1,7 +1,8 @@
 """Seed data for pre-defined exercises and songs."""
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from resolute.db.models import Exercise, ExerciseType, Song, SongSegment
 
@@ -282,6 +283,31 @@ async def get_random_exercise(
 async def get_default_song(session: AsyncSession) -> Song | None:
     """Get the default final song."""
     result = await session.execute(select(Song).where(Song.is_final_song.is_(True)).limit(1))
+    return result.scalar_one_or_none()
+
+
+# Synchronous versions for use in greenlet contexts (LangGraph tools)
+
+
+def get_random_exercise_sync(
+    session: Session, exercise_type: str | None = None, difficulty: int | None = None
+) -> Exercise | None:
+    """Get a random exercise (sync version for greenlet contexts)."""
+    query = select(Exercise)
+    if exercise_type:
+        query = query.where(Exercise.exercise_type == exercise_type)
+    if difficulty:
+        query = query.where(Exercise.difficulty >= difficulty - 1)
+        query = query.where(Exercise.difficulty <= difficulty + 1)
+
+    query = query.order_by(func.random()).limit(1)
+    result = session.execute(query)
+    return result.scalar_one_or_none()
+
+
+def get_default_song_sync(session: Session) -> Song | None:
+    """Get the default final song (sync version for greenlet contexts)."""
+    result = session.execute(select(Song).where(Song.is_final_song.is_(True)).limit(1))
     return result.scalar_one_or_none()
 
 
