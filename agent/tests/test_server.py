@@ -44,9 +44,7 @@ class TestMessages:
 
     def test_client_message_with_data(self):
         """Test ClientMessage with additional data."""
-        msg = ClientMessage(
-            type="collect", player_id="test", data={"segment_id": 1}
-        )
+        msg = ClientMessage(type="collect", player_id="test", data={"segment_id": 1})
         assert msg.type == "collect"
         assert msg.data["segment_id"] == 1
 

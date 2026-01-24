@@ -25,7 +25,9 @@ class WorldGenerator:
         else:
             self._model = model
 
-    async def generate_world(self, player_id: str, player_name: str | None = None) -> dict[str, Any]:
+    async def generate_world(
+        self, player_id: str, player_name: str | None = None
+    ) -> dict[str, Any]:
         """Generate a new world for a player using AI."""
         name = player_name or f"Bard {player_id[:8]}"
 
@@ -62,7 +64,14 @@ class WorldGenerator:
     def _validate_world_data(self, data: dict) -> dict[str, Any]:
         """Validate and normalize world data."""
         # Ensure required fields
-        required_fields = ["name", "theme", "story_arc", "final_monster", "rescue_target", "locations"]
+        required_fields = [
+            "name",
+            "theme",
+            "story_arc",
+            "final_monster",
+            "rescue_target",
+            "locations",
+        ]
         for field in required_fields:
             if field not in data:
                 return self._get_default_world()
@@ -92,14 +101,18 @@ class WorldGenerator:
                 data["locations"][-2]["type"] = LocationType.TAVERN.value
 
         # Add a dungeon for the final quest if not present
-        has_dungeon = any(loc.get("type") == LocationType.DUNGEON.value for loc in data["locations"])
+        has_dungeon = any(
+            loc.get("type") == LocationType.DUNGEON.value for loc in data["locations"]
+        )
         if not has_dungeon:
-            data["locations"].append({
-                "name": f"Lair of {data['final_monster']}",
-                "description": f"The dark domain where {data['final_monster']} holds {data['rescue_target']} captive.",
-                "type": LocationType.DUNGEON.value,
-                "exercise_focus": ExerciseType.HARMONY.value,
-            })
+            data["locations"].append(
+                {
+                    "name": f"Lair of {data['final_monster']}",
+                    "description": f"The dark domain where {data['final_monster']} holds {data['rescue_target']} captive.",
+                    "type": LocationType.DUNGEON.value,
+                    "exercise_focus": ExerciseType.HARMONY.value,
+                }
+            )
 
         return data
 

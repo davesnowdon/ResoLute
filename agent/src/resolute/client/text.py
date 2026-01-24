@@ -50,7 +50,11 @@ def parse_command(user_input: str, player_name: str) -> dict | None:
             return {"type": "world", "player_id": player_name, "content": ""}
 
         elif cmd in ("location", "loc", "where"):
-            return {"type": "chat", "player_id": player_name, "content": "Where am I? What can I do here?"}
+            return {
+                "type": "chat",
+                "player_id": player_name,
+                "content": "Where am I? What can I do here?",
+            }
 
         elif cmd == "travel":
             if not arg:
@@ -70,7 +74,12 @@ def parse_command(user_input: str, player_name: str) -> dict | None:
                 return {"_skip": True}
             try:
                 segment_id = int(arg)
-                return {"type": "collect", "player_id": player_name, "content": "", "data": {"segment_id": segment_id}}
+                return {
+                    "type": "collect",
+                    "player_id": player_name,
+                    "content": "",
+                    "data": {"segment_id": segment_id},
+                }
             except ValueError:
                 print("Segment ID must be a number")
                 return {"_skip": True}

@@ -6,31 +6,31 @@ from pydantic import BaseModel, Field  # noqa: I001
 
 # Client message types
 ClientMessageType = Literal[
-    "chat",      # Chat with the mentor
-    "status",    # Get connection status
-    "quest",     # Quest-related actions (legacy)
-    "world",     # Request world state
-    "travel",    # Start travel to location
+    "chat",  # Chat with the mentor
+    "status",  # Get connection status
+    "quest",  # Quest-related actions (legacy)
+    "world",  # Request world state
+    "travel",  # Start travel to location
     "exercise",  # Exercise actions (start/check/complete)
-    "collect",   # Collect song segment
-    "perform",   # Tavern performance
+    "collect",  # Collect song segment
+    "perform",  # Tavern performance
     "final_quest",  # Final quest actions
-    "inventory",    # Get inventory
+    "inventory",  # Get inventory
 ]
 
 # Server message types
 ServerMessageType = Literal[
-    "response",          # General response
-    "error",             # Error message
-    "status",            # Status update
-    "world_state",       # Full world sync
+    "response",  # General response
+    "error",  # Error message
+    "status",  # Status update
+    "world_state",  # Full world sync
     "world_generating",  # World being generated
-    "exercise_state",    # Timer status
-    "exercise_complete", # Exercise completed with rewards
-    "segment_collected", # Segment collection confirmed
+    "exercise_state",  # Timer status
+    "exercise_complete",  # Exercise completed with rewards
+    "segment_collected",  # Segment collection confirmed
     "performance_result",  # Gold/reputation earned
-    "game_complete",     # Victory!
-    "location_update",   # Location changed
+    "game_complete",  # Victory!
+    "location_update",  # Location changed
     "inventory_update",  # Inventory contents
 ]
 
@@ -38,9 +38,7 @@ ServerMessageType = Literal[
 class ClientMessage(BaseModel):
     """Message sent from client to server."""
 
-    type: ClientMessageType = Field(
-        description="Type of message"
-    )
+    type: ClientMessageType = Field(description="Type of message")
     player_id: str = Field(description="Unique identifier for the player")
     content: str = Field(default="", description="Message content or action parameter")
     data: dict[str, Any] = Field(default_factory=dict, description="Additional structured data")
@@ -49,9 +47,7 @@ class ClientMessage(BaseModel):
 class ServerMessage(BaseModel):
     """Message sent from server to client."""
 
-    type: ServerMessageType = Field(
-        description="Type of response"
-    )
+    type: ServerMessageType = Field(description="Type of response")
     content: str = Field(description="Response content or description")
     data: dict[str, Any] = Field(default_factory=dict, description="Structured response data")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
@@ -67,6 +63,7 @@ class ConnectionMessage(BaseModel):
 
 
 # Helper functions to create common server messages
+
 
 def world_state_message(world_data: dict) -> ServerMessage:
     """Create a world state response message."""
