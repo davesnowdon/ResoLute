@@ -1,9 +1,12 @@
 """Exercise timer tracking for timed practice sessions."""
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 
 class ExerciseState(str, Enum):
@@ -83,6 +86,7 @@ class ExerciseTimer:
         """Start a new exercise session for a player."""
         # Cancel any existing session
         if player_id in self._sessions:
+            logger.debug(f"[{player_id}] Cancelling existing session before starting new one")
             self.cancel_session(player_id)
 
         session = ExerciseSession(
@@ -93,6 +97,10 @@ class ExerciseTimer:
             destination_location_id=destination_location_id,
         )
         self._sessions[player_id] = session
+        logger.info(
+            f"[{player_id}] Exercise session started: '{exercise_name}' "
+            f"(id={exercise_id}, duration={duration_seconds}s)"
+        )
         return session
 
     def get_session(self, player_id: str) -> ExerciseSession | None:
@@ -114,6 +122,9 @@ class ExerciseTimer:
         session = self._sessions.pop(player_id, None)
         if session:
             session.state = ExerciseState.COMPLETED
+            logger.info(f"[{player_id}] Exercise session completed")
+        else:
+            logger.debug(f"[{player_id}] No session to complete")
         return session
 
     def cancel_session(self, player_id: str) -> ExerciseSession | None:
@@ -121,6 +132,9 @@ class ExerciseTimer:
         session = self._sessions.pop(player_id, None)
         if session:
             session.state = ExerciseState.EXPIRED
+            logger.info(f"[{player_id}] Exercise session cancelled")
+        else:
+            logger.debug(f"[{player_id}] No session to cancel")
         return session
 
     def has_active_session(self, player_id: str) -> bool:

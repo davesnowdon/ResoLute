@@ -55,7 +55,6 @@ class WorldGenerator:
         logger.info("WorldGenerator.__init__ complete")
 
     async def _agenerate(self, prompt: str) -> str:
-        """Async implementation of generation."""
         logger.info("_agenerate: calling model.ainvoke()...")
         config = {"callbacks": [self._tracer]} if self._tracer else {}
         response = await self._model.ainvoke(prompt, config=config)

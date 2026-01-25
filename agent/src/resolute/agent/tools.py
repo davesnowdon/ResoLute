@@ -1,5 +1,6 @@
 """Agent tools for the MentorAgent with database integration."""
 
+import logging
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
@@ -10,6 +11,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from resolute.game.exercise_timer import ExerciseTimer
 from resolute.game.services import ExerciseService, PlayerService, QuestService
+
+logger = logging.getLogger(__name__)
 
 
 # Input schemas for tools that need parameters
@@ -57,11 +60,13 @@ def create_tools_for_player(
     Returns:
         List of StructuredTool instances.
     """
+    logger.debug(f"[{player_id}] Creating tools")
 
     def get_player_stats() -> dict[str, Any]:
         """Get the current stats and progress for the player.
         Returns player level, XP, gold, reputation, and skill levels.
         """
+        logger.debug(f"[{player_id}] Tool invoked: get_player_stats")
         with _get_session(session_factory) as session:
             service = PlayerService(session)
             result = service.get_stats(player_id)
@@ -72,6 +77,7 @@ def create_tools_for_player(
         Shows where the player is, available travel destinations,
         and any collectible song segments.
         """
+        logger.debug(f"[{player_id}] Tool invoked: get_current_location")
         with _get_session(session_factory) as session:
             service = PlayerService(session)
             result = service.get_current_location(player_id)
@@ -82,6 +88,7 @@ def create_tools_for_player(
         This begins a timed practice exercise that must be completed
         before arriving at the destination.
         """
+        logger.debug(f"[{player_id}] Tool invoked: start_travel(destination={destination_name})")
         with _get_session(session_factory) as session:
             player_service = PlayerService(session)
             exercise_service = ExerciseService(session, timer)
@@ -115,6 +122,7 @@ def create_tools_for_player(
         """Check the status of the current exercise.
         Shows time remaining and whether the exercise can be completed.
         """
+        logger.debug(f"[{player_id}] Tool invoked: check_exercise")
         with _get_session(session_factory) as session:
             service = ExerciseService(session, timer)
             result = service.check_exercise(player_id)
@@ -127,6 +135,7 @@ def create_tools_for_player(
         Can only be called after the exercise timer has finished.
         Awards XP, gold, and skill bonuses.
         """
+        logger.debug(f"[{player_id}] Tool invoked: complete_exercise")
         with _get_session(session_factory) as session:
             service = ExerciseService(session, timer)
             result = service.complete_exercise(player_id)
@@ -137,6 +146,7 @@ def create_tools_for_player(
         Song segments are pieces of the legendary Hero's Ballad
         that must be collected to complete the final quest.
         """
+        logger.debug(f"[{player_id}] Tool invoked: collect_song_segment(segment_id={segment_id})")
         with _get_session(session_factory) as session:
             service = QuestService(session)
             result = service.collect_segment(player_id, segment_id)
@@ -147,6 +157,7 @@ def create_tools_for_player(
         Shows all segments collected and whether the player is
         ready for the final quest.
         """
+        logger.debug(f"[{player_id}] Tool invoked: get_inventory")
         with _get_session(session_factory) as session:
             service = QuestService(session)
             result = service.get_inventory(player_id)
@@ -157,6 +168,7 @@ def create_tools_for_player(
         Must be at a tavern location. Performance rewards scale
         with the number of song segments collected.
         """
+        logger.debug(f"[{player_id}] Tool invoked: perform_at_tavern")
         with _get_session(session_factory) as session:
             service = QuestService(session)
             result = service.perform_at_tavern(player_id)
@@ -167,6 +179,7 @@ def create_tools_for_player(
         The final quest requires all song segments to be collected.
         Shows progress toward the goal.
         """
+        logger.debug(f"[{player_id}] Tool invoked: check_final_quest_ready")
         with _get_session(session_factory) as session:
             service = QuestService(session)
             result = service.check_final_quest_ready(player_id)
@@ -177,6 +190,7 @@ def create_tools_for_player(
         Performs the complete Hero's Ballad to charm the monster.
         Requires all song segments to be collected.
         """
+        logger.debug(f"[{player_id}] Tool invoked: attempt_final_quest")
         with _get_session(session_factory) as session:
             service = QuestService(session)
             result = service.complete_final_quest(player_id)
@@ -238,6 +252,7 @@ def create_tools_for_player(
         ),
     ]
 
+    logger.info(f"[{player_id}] {len(tools)} tools created")
     return tools
 
 

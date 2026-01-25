@@ -1,11 +1,15 @@
 """Player service for business logic."""
 
+import logging
+
 from sqlalchemy.orm import Session
 
 from resolute.core.result import Result
 from resolute.db.models import LocationType, Player, SkillType
 from resolute.db.repositories import PlayerRepository, ProgressRepository, WorldRepository
 from resolute.game.rewards import RewardCalculator
+
+logger = logging.getLogger(__name__)
 
 
 class PlayerService:
@@ -22,12 +26,14 @@ class PlayerService:
         player = self.player_repo.get_by_id(player_id)
         if player is None:
             player = self.player_repo.create(player_id)
+            logger.info(f"[{player_id}] New player created")
         return Result.ok(player)
 
     def get_player(self, player_id: str) -> Result[Player]:
         """Get a player by ID."""
         player = self.player_repo.get_by_id(player_id)
         if player is None:
+            logger.warning(f"[{player_id}] Player not found")
             return Result.err("Player not found")
         return Result.ok(player)
 
@@ -35,6 +41,7 @@ class PlayerService:
         """Get player stats as a dictionary."""
         player = self.player_repo.get_by_id(player_id)
         if player is None:
+            logger.warning(f"[{player_id}] Player not found for stats")
             return Result.err("Player not found")
         return Result.ok(player.to_dict())
 
@@ -50,8 +57,10 @@ class PlayerService:
         """Update player stats and check for level up."""
         player = self.player_repo.get_by_id(player_id)
         if player is None:
+            logger.warning(f"[{player_id}] Player not found for stat update")
             return Result.err("Player not found")
 
+        old_level = player.level
         old_xp = player.xp
         player.xp += xp_delta
         player.gold += gold_delta
@@ -65,31 +74,38 @@ class PlayerService:
         leveled_up, new_level = RewardCalculator.check_level_up(old_xp, player.xp)
         if leveled_up:
             player.level = new_level
+            logger.info(f"[{player_id}] Level up! {old_level} -> {new_level}")
 
         self.player_repo.update(player)
+        logger.debug(f"[{player_id}] Stats updated: xp+{xp_delta}, gold+{gold_delta}, rep+{reputation_delta}")
         return Result.ok(player)
 
     def set_location(self, player_id: str, location_id: int) -> Result[Player]:
         """Set the player's current location."""
         player = self.player_repo.get_by_id(player_id)
         if player is None:
+            logger.warning(f"[{player_id}] Player not found for location change")
             return Result.err("Player not found")
 
         player.current_location_id = location_id
         self.player_repo.update(player)
+        logger.info(f"[{player_id}] Location changed to location_id={location_id}")
         return Result.ok(player)
 
     def get_current_location(self, player_id: str) -> Result[dict]:
         """Get the player's current location with available actions."""
         player = self.player_repo.get_by_id(player_id)
         if player is None:
+            logger.warning(f"[{player_id}] Player not found for current location")
             return Result.err("Player not found")
 
         if player.current_location_id is None:
+            logger.warning(f"[{player_id}] Player has no current location")
             return Result.err("Player has no current location")
 
         location = self.world_repo.get_location_with_segments(player.current_location_id)
         if location is None:
+            logger.warning(f"[{player_id}] Location {player.current_location_id} not found")
             return Result.err("Location not found")
 
         # Get available destinations
