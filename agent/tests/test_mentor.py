@@ -54,13 +54,21 @@ class TestMentorAgent:
 
     @patch("resolute.agent.mentor.ChatGoogleGenerativeAI")
     @patch("resolute.agent.mentor.create_react_agent")
-    def test_mentor_agent_initialization(self, mock_create_agent, mock_llm):
+    def test_mentor_agent_initialization(
+        self, mock_create_agent, mock_llm, test_session_factory, test_timer
+    ):
         """Test that MentorAgent initializes correctly."""
         from resolute.agent.mentor import MentorAgent
 
         mock_create_agent.return_value = MagicMock()
 
-        agent = MentorAgent(player_id="test-123", player_name="TestPlayer")
+        agent = MentorAgent(
+            player_id="test-123",
+            session_factory=test_session_factory,
+            timer=test_timer,
+            google_api_key="test-key",
+            player_name="TestPlayer",
+        )
 
         assert agent.player_id == "test-123"
         assert agent.player_name == "TestPlayer"
@@ -70,26 +78,40 @@ class TestMentorAgent:
 
     @patch("resolute.agent.mentor.ChatGoogleGenerativeAI")
     @patch("resolute.agent.mentor.create_react_agent")
-    def test_mentor_agent_default_name(self, mock_create_agent, mock_llm):
+    def test_mentor_agent_default_name(
+        self, mock_create_agent, mock_llm, test_session_factory, test_timer
+    ):
         """Test that MentorAgent uses default name when none provided."""
         from resolute.agent.mentor import MentorAgent
 
         mock_create_agent.return_value = MagicMock()
 
-        agent = MentorAgent(player_id="test-456")
+        agent = MentorAgent(
+            player_id="test-456",
+            session_factory=test_session_factory,
+            timer=test_timer,
+            google_api_key="test-key",
+        )
 
         assert agent.player_name == "Adventurer"
         assert "Adventurer" in agent.system_prompt
 
     @patch("resolute.agent.mentor.ChatGoogleGenerativeAI")
     @patch("resolute.agent.mentor.create_react_agent")
-    def test_mentor_agent_has_tools(self, mock_create_agent, mock_llm):
+    def test_mentor_agent_has_tools(
+        self, mock_create_agent, mock_llm, test_session_factory, test_timer
+    ):
         """Test that MentorAgent always has tools (each tool creates its own session)."""
         from resolute.agent.mentor import MentorAgent
 
         mock_create_agent.return_value = MagicMock()
 
-        agent = MentorAgent(player_id="test-789")
+        agent = MentorAgent(
+            player_id="test-789",
+            session_factory=test_session_factory,
+            timer=test_timer,
+            google_api_key="test-key",
+        )
 
         # Tools are always created - they manage their own sessions
         assert len(agent.tools) == 10

@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from resolute.db.models import Base
+from resolute.game.exercise_timer import ExerciseTimer
 
 
 @pytest.fixture
@@ -44,6 +45,12 @@ def seeded_test_session(test_session):
 
     seed_exercises_and_songs(test_session)
     return test_session
+
+
+@pytest.fixture
+def test_timer():
+    """Provide a fresh ExerciseTimer for testing."""
+    return ExerciseTimer()
 
 
 @pytest.fixture(autouse=True)

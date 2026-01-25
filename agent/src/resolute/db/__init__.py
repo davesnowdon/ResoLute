@@ -10,11 +10,7 @@ from resolute.db.models import (
     SongSegment,
     World,
 )
-from resolute.db.session import (
-    create_tables,
-    get_engine,
-    get_session,
-)
+from resolute.db.session import create_tables, drop_tables
 
 __all__ = [
     "Base",
@@ -25,7 +21,6 @@ __all__ = [
     "Song",
     "SongSegment",
     "PlayerProgress",
-    "get_engine",
-    "get_session",
     "create_tables",
+    "drop_tables",
 ]

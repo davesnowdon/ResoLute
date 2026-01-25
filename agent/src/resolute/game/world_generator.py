@@ -9,9 +9,7 @@ from typing import Any
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from resolute.agent.prompts import WORLD_GENERATION_PROMPT
-from resolute.config import get_settings
 from resolute.db.models import ExerciseType, LocationType
-from resolute.tracing import get_tracer
 
 logger = logging.getLogger(__name__)
 
@@ -19,20 +17,21 @@ logger = logging.getLogger(__name__)
 class WorldGenerator:
     """Generates unique fantasy worlds using AI."""
 
-    def __init__(self, model: ChatGoogleGenerativeAI | None = None):
+    def __init__(
+        self,
+        google_api_key: str,
+        gemini_model: str = "gemini-2.0-flash",
+        tracer: object | None = None,
+    ):
         logger.info("WorldGenerator.__init__ starting...")
-        if model is None:
-            settings = get_settings()
-            logger.info(f"Creating ChatGoogleGenerativeAI with model={settings.gemini_model}")
-            self._model = ChatGoogleGenerativeAI(
-                model=settings.gemini_model,
-                google_api_key=settings.google_api_key,
-                temperature=0.9,  # Higher creativity for world generation
-            )
-            logger.info("ChatGoogleGenerativeAI created successfully")
-        else:
-            self._model = model
-        self._tracer = get_tracer()
+        logger.info(f"Creating ChatGoogleGenerativeAI with model={gemini_model}")
+        self._model = ChatGoogleGenerativeAI(
+            model=gemini_model,
+            google_api_key=google_api_key,
+            temperature=0.9,  # Higher creativity for world generation
+        )
+        logger.info("ChatGoogleGenerativeAI created successfully")
+        self._tracer = tracer
         logger.info("WorldGenerator.__init__ complete")
 
     async def _agenerate(self, prompt: str) -> str:
@@ -181,13 +180,3 @@ class WorldGenerator:
         }
 
 
-# Singleton instance
-_generator: WorldGenerator | None = None
-
-
-def get_world_generator() -> WorldGenerator:
-    """Get the global world generator instance."""
-    global _generator
-    if _generator is None:
-        _generator = WorldGenerator()
-    return _generator

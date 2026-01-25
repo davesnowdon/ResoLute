@@ -286,9 +286,13 @@ def get_default_song(session: Session) -> Song | None:
 
 
 if __name__ == "__main__":
-    from resolute.db.session import get_session
+    from resolute.context import create_context
+    from resolute.db.session import create_tables
 
-    with get_session() as session:
+    ctx = create_context()
+    create_tables(ctx.engine)
+
+    with ctx.session() as session:
         seed_exercises_and_songs(session)
         print("Database seeded successfully!")
 

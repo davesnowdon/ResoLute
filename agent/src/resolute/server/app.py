@@ -9,9 +9,10 @@ from pydantic import ValidationError
 
 from resolute.agent import MentorAgent
 from resolute.config import get_settings
-from resolute.db.session import get_session, init_db
+from resolute.context import AppContext, create_context
+from resolute.db.seed_data import seed_exercises_and_songs
+from resolute.db.session import create_tables
 from resolute.game.services import ExerciseService, PlayerService, QuestService, WorldService
-from resolute.game.world_generator import get_world_generator
 from resolute.server.messages import (
     ClientMessage,
     ConnectionMessage,
@@ -26,7 +27,6 @@ from resolute.server.messages import (
     world_generating_message,
     world_state_message,
 )
-from resolute.tracing import setup_tracing
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,7 +39,9 @@ class ConnectionManager:
         self.active_connections: dict[str, WebSocket] = {}
         self.agents: dict[str, MentorAgent] = {}
 
-    async def connect(self, websocket: WebSocket, player_id: str) -> bool:
+    async def connect(
+        self, websocket: WebSocket, player_id: str, ctx: AppContext
+    ) -> bool:
         """Accept a new connection and initialize player resources.
 
         Returns True if this is a new player (needs world generation).
@@ -48,7 +50,7 @@ class ConnectionManager:
         self.active_connections[player_id] = websocket
 
         # Check if player has a world
-        with get_session() as session:
+        with ctx.session() as session:
             player_service = PlayerService(session)
             world_service = WorldService(session)
 
@@ -58,9 +60,14 @@ class ConnectionManager:
             world_result = world_service.get_or_generate(player_id)
             world_data = world_result.unwrap()
 
-            # Create agent - tools create their own sessions
+            # Create agent
             agent = MentorAgent(
                 player_id=player_id,
+                session_factory=ctx.session_factory,
+                timer=ctx.exercise_timer,
+                google_api_key=ctx.settings.google_api_key,
+                gemini_model=ctx.settings.gemini_model,
+                tracer=ctx.tracer,
                 player_name=player.name,
             )
             self.agents[player_id] = agent
@@ -87,8 +94,10 @@ manager = ConnectionManager()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
-    # Startup
-    setup_tracing()
+    # Startup - create context
+    ctx = create_context()
+    app.state.ctx = ctx
+
     settings = get_settings()
     logger.info(f"ResoLute server starting on {settings.host}:{settings.port}")
     logger.info(f"Using Gemini model: {settings.gemini_model}")
@@ -97,8 +106,10 @@ async def lifespan(app: FastAPI):
     if not settings.has_google_api_key:
         logger.warning("GOOGLE_API_KEY not set - agent will fail to respond")
 
-    # Initialize database (sync)
-    init_db()
+    # Initialize database
+    create_tables(ctx.engine)
+    with ctx.session() as session:
+        seed_exercises_and_songs(session)
     logger.info("Database initialized")
 
     yield
@@ -121,10 +132,10 @@ async def health_check():
     return {"status": "healthy", "service": "resolute"}
 
 
-def handle_world_request(player_id: str) -> ServerMessage:
+def handle_world_request(player_id: str, ctx: AppContext) -> ServerMessage:
     """Handle world state request, generating if needed."""
     logger.info(f"[{player_id}] World request")
-    with get_session() as session:
+    with ctx.session() as session:
         world_service = WorldService(session)
         player_service = PlayerService(session)
 
@@ -137,14 +148,20 @@ def handle_world_request(player_id: str) -> ServerMessage:
         if world_data.get("needs_generation"):
             # Generate a new world (sync AI call)
             logger.info(f"[{player_id}] Generating new world...")
-            generator = get_world_generator()
+            generator = ctx.world_generator
 
             player_result = player_service.get_player(player_id)
-            player_name = player_result.unwrap().name if player_result.is_ok else f"Bard {player_id[:8]}"
+            player_name = (
+                player_result.unwrap().name
+                if player_result.is_ok
+                else f"Bard {player_id[:8]}"
+            )
 
             try:
                 generated_data = generator.generate_world(player_id, player_name)
-                logger.info(f"[{player_id}] World generated: {generated_data.get('name', 'unknown')}")
+                logger.info(
+                    f"[{player_id}] World generated: {generated_data.get('name', 'unknown')}"
+                )
 
                 # Create the world in the database
                 create_result = world_service.create_world(
@@ -169,11 +186,13 @@ def handle_world_request(player_id: str) -> ServerMessage:
             return world_state_message(world_data["world"])
 
 
-def handle_travel_request(player_id: str, destination: str) -> ServerMessage:
+def handle_travel_request(
+    player_id: str, destination: str, ctx: AppContext
+) -> ServerMessage:
     """Handle travel request to start an exercise."""
-    with get_session() as session:
+    with ctx.session() as session:
         player_service = PlayerService(session)
-        exercise_service = ExerciseService(session)
+        exercise_service = ExerciseService(session, ctx.exercise_timer)
 
         # Get available destinations
         loc_result = player_service.get_current_location(player_id)
@@ -200,10 +219,12 @@ def handle_travel_request(player_id: str, destination: str) -> ServerMessage:
         return exercise_state_message(result.unwrap()["session"])
 
 
-def handle_exercise_request(player_id: str, action: str) -> ServerMessage:
+def handle_exercise_request(
+    player_id: str, action: str, ctx: AppContext
+) -> ServerMessage:
     """Handle exercise actions (check/complete)."""
-    with get_session() as session:
-        exercise_service = ExerciseService(session)
+    with ctx.session() as session:
+        exercise_service = ExerciseService(session, ctx.exercise_timer)
 
         if action == "check":
             result = exercise_service.check_exercise(player_id)
@@ -221,9 +242,11 @@ def handle_exercise_request(player_id: str, action: str) -> ServerMessage:
             return error_message(f"Unknown exercise action: {action}")
 
 
-def handle_collect_request(player_id: str, segment_id: int) -> ServerMessage:
+def handle_collect_request(
+    player_id: str, segment_id: int, ctx: AppContext
+) -> ServerMessage:
     """Handle segment collection."""
-    with get_session() as session:
+    with ctx.session() as session:
         quest_service = QuestService(session)
         result = quest_service.collect_segment(player_id, segment_id)
 
@@ -233,9 +256,9 @@ def handle_collect_request(player_id: str, segment_id: int) -> ServerMessage:
         return segment_collected_message(result.unwrap())
 
 
-def handle_perform_request(player_id: str) -> ServerMessage:
+def handle_perform_request(player_id: str, ctx: AppContext) -> ServerMessage:
     """Handle tavern performance."""
-    with get_session() as session:
+    with ctx.session() as session:
         quest_service = QuestService(session)
         result = quest_service.perform_at_tavern(player_id)
 
@@ -245,9 +268,11 @@ def handle_perform_request(player_id: str) -> ServerMessage:
         return performance_result_message(result.unwrap())
 
 
-def handle_final_quest_request(player_id: str, action: str) -> ServerMessage:
+def handle_final_quest_request(
+    player_id: str, action: str, ctx: AppContext
+) -> ServerMessage:
     """Handle final quest actions."""
-    with get_session() as session:
+    with ctx.session() as session:
         quest_service = QuestService(session)
 
         if action == "check":
@@ -277,9 +302,9 @@ def handle_final_quest_request(player_id: str, action: str) -> ServerMessage:
             return error_message(f"Unknown final quest action: {action}")
 
 
-def handle_inventory_request(player_id: str) -> ServerMessage:
+def handle_inventory_request(player_id: str, ctx: AppContext) -> ServerMessage:
     """Handle inventory request."""
-    with get_session() as session:
+    with ctx.session() as session:
         quest_service = QuestService(session)
         result = quest_service.get_inventory(player_id)
 
@@ -312,7 +337,8 @@ def handle_chat_with_context(player_id: str, message: str) -> ServerMessage:
 @app.websocket("/ws/{player_id}")
 async def websocket_endpoint(websocket: WebSocket, player_id: str):
     """WebSocket endpoint for player communication."""
-    needs_world = await manager.connect(websocket, player_id)
+    ctx: AppContext = app.state.ctx
+    needs_world = await manager.connect(websocket, player_id, ctx)
 
     # Send connection confirmation
     connection_msg = ConnectionMessage(
@@ -328,7 +354,7 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
         generating_msg = world_generating_message()
         await websocket.send_json(generating_msg.model_dump())
 
-        world_msg = await asyncio.to_thread(handle_world_request, player_id)
+        world_msg = await asyncio.to_thread(handle_world_request, player_id, ctx)
         await websocket.send_json(world_msg.model_dump())
 
     try:
@@ -363,14 +389,14 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
                 )
 
             elif msg.type == "world":
-                response = await asyncio.to_thread(handle_world_request, player_id)
+                response = await asyncio.to_thread(handle_world_request, player_id, ctx)
 
             elif msg.type == "travel":
-                response = handle_travel_request(player_id, msg.content)
+                response = handle_travel_request(player_id, msg.content, ctx)
 
             elif msg.type == "exercise":
                 action = msg.content or msg.data.get("action", "check")
-                response = handle_exercise_request(player_id, action)
+                response = handle_exercise_request(player_id, action, ctx)
 
             elif msg.type == "collect":
                 segment_id = msg.data.get("segment_id")
@@ -381,17 +407,17 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
                         response = error_message("segment_id required")
                         await websocket.send_json(response.model_dump())
                         continue
-                response = handle_collect_request(player_id, segment_id)
+                response = handle_collect_request(player_id, segment_id, ctx)
 
             elif msg.type == "perform":
-                response = handle_perform_request(player_id)
+                response = handle_perform_request(player_id, ctx)
 
             elif msg.type == "final_quest":
                 action = msg.content or msg.data.get("action", "check")
-                response = handle_final_quest_request(player_id, action)
+                response = handle_final_quest_request(player_id, action, ctx)
 
             elif msg.type == "inventory":
-                response = handle_inventory_request(player_id)
+                response = handle_inventory_request(player_id, ctx)
 
             elif msg.type == "quest":
                 # Legacy quest handling - route through chat
