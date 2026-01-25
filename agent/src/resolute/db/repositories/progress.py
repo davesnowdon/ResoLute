@@ -1,6 +1,6 @@
 """Progress repository for data access."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -53,7 +53,7 @@ class ProgressRepository:
     def mark_completed(self, progress: PlayerProgress) -> PlayerProgress:
         """Mark a progress entry as completed."""
         progress.state = ProgressState.COMPLETED.value
-        progress.completed_at = datetime.utcnow()
+        progress.completed_at = datetime.now(UTC)
         self.session.flush()
         return progress
 
