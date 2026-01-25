@@ -23,14 +23,14 @@ class ExerciseSession:
     exercise_id: int
     exercise_name: str
     duration_seconds: int
-    started_at: datetime = field(default_factory=datetime.utcnow)
+    started_at: datetime = field(default_factory=lambda: datetime.now(datetime.UTC))
     state: ExerciseState = ExerciseState.IN_PROGRESS
     destination_location_id: int | None = None
 
     @property
     def elapsed_seconds(self) -> float:
         """Get elapsed time in seconds."""
-        return (datetime.utcnow() - self.started_at).total_seconds()
+        return (datetime.now(datetime.UTC) - self.started_at).total_seconds()
 
     @property
     def remaining_seconds(self) -> float:

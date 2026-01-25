@@ -53,7 +53,7 @@ class ProgressRepository:
     def mark_completed(self, progress: PlayerProgress) -> PlayerProgress:
         """Mark a progress entry as completed."""
         progress.state = ProgressState.COMPLETED.value
-        progress.completed_at = datetime.utcnow()
+        progress.completed_at = datetime.now(datetime.UTC)
         self.session.flush()
         return progress
 
