@@ -6,8 +6,6 @@ import logging
 import re
 from typing import Any
 
-from langchain_google_genai import ChatGoogleGenerativeAI
-
 from resolute.agent.prompts import WORLD_GENERATION_PROMPT
 from resolute.db.models import ExerciseType, LocationType
 
@@ -19,18 +17,15 @@ class WorldGenerator:
 
     def __init__(
         self,
-        google_api_key: str,
-        gemini_model: str = "gemini-2.0-flash",
+        model: str,
         tracer: object | None = None,
     ):
         logger.info("WorldGenerator.__init__ starting...")
-        logger.info(f"Creating ChatGoogleGenerativeAI with model={gemini_model}")
-        self._model = ChatGoogleGenerativeAI(
-            model=gemini_model,
-            google_api_key=google_api_key,
-            temperature=0.9,  # Higher creativity for world generation
-        )
-        logger.info("ChatGoogleGenerativeAI created successfully")
+        logger.info(f"Creating chat model: {model}")
+        from resolute.llm import create_chat_model
+
+        self._model = create_chat_model(model, temperature=0.9)
+        logger.info("Chat model created successfully")
         self._tracer = tracer
         logger.info("WorldGenerator.__init__ complete")
 

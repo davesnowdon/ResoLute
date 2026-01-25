@@ -34,8 +34,7 @@ class AppContext:
             from resolute.game.world_generator import WorldGenerator
 
             self._world_generator = WorldGenerator(
-                google_api_key=self.settings.google_api_key,
-                gemini_model=self.settings.gemini_model,
+                model=self.settings.model,
                 tracer=self.tracer,
             )
         return self._world_generator

@@ -52,10 +52,10 @@ class TestTools:
 class TestMentorAgent:
     """Tests for MentorAgent initialization."""
 
-    @patch("resolute.agent.mentor.ChatGoogleGenerativeAI")
+    @patch("resolute.llm.init_chat_model")
     @patch("resolute.agent.mentor.create_react_agent")
     def test_mentor_agent_initialization(
-        self, mock_create_agent, mock_llm, test_session_factory, test_timer
+        self, mock_create_agent, mock_init_model, test_session_factory, test_timer
     ):
         """Test that MentorAgent initializes correctly."""
         from resolute.agent.mentor import MentorAgent
@@ -66,20 +66,20 @@ class TestMentorAgent:
             player_id="test-123",
             session_factory=test_session_factory,
             timer=test_timer,
-            google_api_key="test-key",
+            model="google_genai/gemini-2.0-flash",
             player_name="TestPlayer",
         )
 
         assert agent.player_id == "test-123"
         assert agent.player_name == "TestPlayer"
         assert "TestPlayer" in agent.system_prompt
-        mock_llm.assert_called_once()
+        mock_init_model.assert_called_once()
         mock_create_agent.assert_called_once()
 
-    @patch("resolute.agent.mentor.ChatGoogleGenerativeAI")
+    @patch("resolute.llm.init_chat_model")
     @patch("resolute.agent.mentor.create_react_agent")
     def test_mentor_agent_default_name(
-        self, mock_create_agent, mock_llm, test_session_factory, test_timer
+        self, mock_create_agent, mock_init_model, test_session_factory, test_timer
     ):
         """Test that MentorAgent uses default name when none provided."""
         from resolute.agent.mentor import MentorAgent
@@ -90,16 +90,16 @@ class TestMentorAgent:
             player_id="test-456",
             session_factory=test_session_factory,
             timer=test_timer,
-            google_api_key="test-key",
+            model="google_genai/gemini-2.0-flash",
         )
 
         assert agent.player_name == "Adventurer"
         assert "Adventurer" in agent.system_prompt
 
-    @patch("resolute.agent.mentor.ChatGoogleGenerativeAI")
+    @patch("resolute.llm.init_chat_model")
     @patch("resolute.agent.mentor.create_react_agent")
     def test_mentor_agent_has_tools(
-        self, mock_create_agent, mock_llm, test_session_factory, test_timer
+        self, mock_create_agent, mock_init_model, test_session_factory, test_timer
     ):
         """Test that MentorAgent always has tools (each tool creates its own session)."""
         from resolute.agent.mentor import MentorAgent
@@ -110,7 +110,7 @@ class TestMentorAgent:
             player_id="test-789",
             session_factory=test_session_factory,
             timer=test_timer,
-            google_api_key="test-key",
+            model="google_genai/gemini-2.0-flash",
         )
 
         # Tools are always created - they manage their own sessions

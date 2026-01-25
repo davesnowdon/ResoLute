@@ -65,8 +65,7 @@ class ConnectionManager:
                 player_id=player_id,
                 session_factory=ctx.session_factory,
                 timer=ctx.exercise_timer,
-                google_api_key=ctx.settings.google_api_key,
-                gemini_model=ctx.settings.gemini_model,
+                model=ctx.settings.model,
                 tracer=ctx.tracer,
                 player_name=player.name,
             )
@@ -100,11 +99,8 @@ async def lifespan(app: FastAPI):
 
     settings = get_settings()
     logger.info(f"ResoLute server starting on {settings.host}:{settings.port}")
-    logger.info(f"Using Gemini model: {settings.gemini_model}")
+    logger.info(f"Using model: {settings.model}")
     logger.info(f"Database: {settings.database_url}")
-
-    if not settings.has_google_api_key:
-        logger.warning("GOOGLE_API_KEY not set - agent will fail to respond")
 
     # Initialize database
     create_tables(ctx.engine)

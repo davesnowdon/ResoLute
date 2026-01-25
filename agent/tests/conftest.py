@@ -56,8 +56,8 @@ def test_timer():
 @pytest.fixture(autouse=True)
 def mock_env_vars(monkeypatch):
     """Set up test environment variables."""
+    monkeypatch.setenv("MODEL", "google_genai/gemini-2.0-flash")
     monkeypatch.setenv("GOOGLE_API_KEY", "test-api-key")
-    monkeypatch.setenv("GEMINI_MODEL", "gemini-2.0-flash")
     monkeypatch.setenv("OPIK_API_KEY", "")
     monkeypatch.setenv("OPIK_PROJECT_NAME", "resolute-test")
     monkeypatch.setenv("HOST", "localhost")

@@ -4,7 +4,6 @@ import asyncio
 import logging
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import create_react_agent
 from sqlalchemy.orm import Session, sessionmaker
@@ -24,8 +23,7 @@ class MentorAgent:
         player_id: str,
         session_factory: sessionmaker[Session],
         timer: ExerciseTimer,
-        google_api_key: str,
-        gemini_model: str = "gemini-2.0-flash",
+        model: str,
         tracer: object | None = None,
         player_name: str = "Adventurer",
     ):
@@ -35,8 +33,7 @@ class MentorAgent:
             player_id: The unique identifier for the player.
             session_factory: Factory for creating database sessions.
             timer: The exercise timer instance.
-            google_api_key: Google API key for Gemini.
-            gemini_model: Gemini model to use.
+            model: LLM model identifier (e.g., "google_genai/gemini-2.0-flash").
             tracer: Optional tracer for observability.
             player_name: The display name of the player being mentored.
         """
@@ -44,11 +41,9 @@ class MentorAgent:
         self.player_name = player_name
 
         # Initialize LLM
-        self.llm = ChatGoogleGenerativeAI(
-            model=gemini_model,
-            google_api_key=google_api_key,
-            temperature=0.7,
-        )
+        from resolute.llm import create_chat_model
+
+        self.llm = create_chat_model(model, temperature=0.7)
 
         # Create memory for conversation persistence
         self.memory = MemorySaver()
