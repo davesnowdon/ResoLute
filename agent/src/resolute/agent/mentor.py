@@ -4,14 +4,13 @@ import asyncio
 import logging
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import create_react_agent
+from sqlalchemy.orm import Session, sessionmaker
 
 from resolute.agent.prompts import MENTOR_SYSTEM_PROMPT
 from resolute.agent.tools import create_tools_for_player
-from resolute.config import get_settings
-from resolute.tracing import get_tracer
+from resolute.game.exercise_timer import ExerciseTimer
 
 logger = logging.getLogger(__name__)
 
@@ -22,24 +21,29 @@ class MentorAgent:
     def __init__(
         self,
         player_id: str,
+        session_factory: sessionmaker[Session],
+        timer: ExerciseTimer,
+        model: str,
+        tracer: object | None = None,
         player_name: str = "Adventurer",
     ):
         """Initialize the MentorAgent.
 
         Args:
             player_id: The unique identifier for the player.
+            session_factory: Factory for creating database sessions.
+            timer: The exercise timer instance.
+            model: LLM model identifier (e.g., "google_genai/gemini-2.0-flash").
+            tracer: Optional tracer for observability.
             player_name: The display name of the player being mentored.
         """
         self.player_id = player_id
         self.player_name = player_name
-        self.settings = get_settings()
 
         # Initialize LLM
-        self.llm = ChatGoogleGenerativeAI(
-            model=self.settings.gemini_model,
-            google_api_key=self.settings.google_api_key,
-            temperature=0.7,
-        )
+        from resolute.llm import create_chat_model
+
+        self.llm = create_chat_model(model, temperature=0.7)
 
         # Create memory for conversation persistence
         self.memory = MemorySaver()
@@ -47,8 +51,8 @@ class MentorAgent:
         # Create system prompt
         self.system_prompt = MENTOR_SYSTEM_PROMPT.format(player_name=player_name)
 
-        # Create tools - each tool creates its own session to avoid greenlet issues
-        self.tools = create_tools_for_player(player_id)
+        # Create tools
+        self.tools = create_tools_for_player(player_id, session_factory, timer)
 
         # Create the ReAct agent
         self.agent = create_react_agent(
@@ -57,8 +61,8 @@ class MentorAgent:
             checkpointer=self.memory,
         )
 
-        # Get tracer if available
-        self.tracer = get_tracer()
+        # Store tracer
+        self.tracer = tracer
 
         logger.info(f"MentorAgent initialized for player: {player_name} (ID: {player_id})")
 

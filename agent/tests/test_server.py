@@ -86,10 +86,19 @@ class TestMessages:
 class TestHealthEndpoint:
     """Tests for the health check endpoint."""
 
-    @patch("resolute.server.app.init_db")
-    def test_health_check(self, mock_init_db):
+    @patch("resolute.server.app.create_context")
+    @patch("resolute.server.app.create_tables")
+    @patch("resolute.server.app.seed_exercises_and_songs")
+    def test_health_check(self, mock_seed, mock_create_tables, mock_create_context):
         """Test that health check returns healthy status."""
-        mock_init_db.return_value = None
+        from unittest.mock import MagicMock
+
+        # Mock context with session method
+        mock_ctx = MagicMock()
+        mock_ctx.session.return_value.__enter__ = MagicMock(return_value=MagicMock())
+        mock_ctx.session.return_value.__exit__ = MagicMock(return_value=None)
+        mock_create_context.return_value = mock_ctx
+
         with TestClient(app) as client:
             response = client.get("/health")
             assert response.status_code == 200

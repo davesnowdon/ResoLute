@@ -15,9 +15,11 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Google Gemini
-    google_api_key: str = Field(default="", description="Google API key for Gemini")
-    gemini_model: str = Field(default="gemini-2.0-flash", description="Gemini model to use")
+    # LLM Configuration
+    model: str = Field(
+        default="google_genai/gemini-2.0-flash",
+        description="LLM model in format 'provider/model_name' (e.g., 'google_genai/gemini-2.0-flash', 'openai/gpt-4o')",
+    )
 
     # Opik
     opik_api_key: str = Field(default="", description="Opik API key for tracing")
@@ -33,11 +35,6 @@ class Settings(BaseSettings):
         default="sqlite+aiosqlite:///./resolute.db",
         description="Database connection URL",
     )
-
-    @property
-    def has_google_api_key(self) -> bool:
-        """Check if Google API key is configured."""
-        return bool(self.google_api_key)
 
     @property
     def has_opik_api_key(self) -> bool:

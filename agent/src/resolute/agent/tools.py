@@ -1,11 +1,14 @@
 """Agent tools for the MentorAgent with database integration."""
 
+from collections.abc import Generator
+from contextlib import contextmanager
 from typing import Any
 
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session, sessionmaker
 
-from resolute.db.session import get_session
+from resolute.game.exercise_timer import ExerciseTimer
 from resolute.game.services import ExerciseService, PlayerService, QuestService
 
 
@@ -22,7 +25,25 @@ class CollectSegmentInput(BaseModel):
     segment_id: int = Field(description="The ID of the segment to collect")
 
 
-def create_tools_for_player(player_id: str) -> list:
+@contextmanager
+def _get_session(factory: sessionmaker[Session]) -> Generator[Session, None, None]:
+    """Get a database session as a context manager."""
+    session = factory()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def create_tools_for_player(
+    player_id: str,
+    session_factory: sessionmaker[Session],
+    timer: ExerciseTimer,
+) -> list:
     """Create tools bound to a specific player.
 
     Each tool uses synchronous database operations to avoid greenlet/async
@@ -30,6 +51,8 @@ def create_tools_for_player(player_id: str) -> list:
 
     Args:
         player_id: The player's ID.
+        session_factory: Factory for creating database sessions.
+        timer: The exercise timer instance.
 
     Returns:
         List of StructuredTool instances.
@@ -39,7 +62,7 @@ def create_tools_for_player(player_id: str) -> list:
         """Get the current stats and progress for the player.
         Returns player level, XP, gold, reputation, and skill levels.
         """
-        with get_session() as session:
+        with _get_session(session_factory) as session:
             service = PlayerService(session)
             result = service.get_stats(player_id)
             return result.to_dict()
@@ -49,7 +72,7 @@ def create_tools_for_player(player_id: str) -> list:
         Shows where the player is, available travel destinations,
         and any collectible song segments.
         """
-        with get_session() as session:
+        with _get_session(session_factory) as session:
             service = PlayerService(session)
             result = service.get_current_location(player_id)
             return result.to_dict()
@@ -59,9 +82,9 @@ def create_tools_for_player(player_id: str) -> list:
         This begins a timed practice exercise that must be completed
         before arriving at the destination.
         """
-        with get_session() as session:
+        with _get_session(session_factory) as session:
             player_service = PlayerService(session)
-            exercise_service = ExerciseService(session)
+            exercise_service = ExerciseService(session, timer)
 
             # Get current location to find destination
             loc_result = player_service.get_current_location(player_id)
@@ -92,8 +115,8 @@ def create_tools_for_player(player_id: str) -> list:
         """Check the status of the current exercise.
         Shows time remaining and whether the exercise can be completed.
         """
-        with get_session() as session:
-            service = ExerciseService(session)
+        with _get_session(session_factory) as session:
+            service = ExerciseService(session, timer)
             result = service.check_exercise(player_id)
             if result.is_err:
                 return {"status": "no_active_exercise", "message": result.error}
@@ -104,8 +127,8 @@ def create_tools_for_player(player_id: str) -> list:
         Can only be called after the exercise timer has finished.
         Awards XP, gold, and skill bonuses.
         """
-        with get_session() as session:
-            service = ExerciseService(session)
+        with _get_session(session_factory) as session:
+            service = ExerciseService(session, timer)
             result = service.complete_exercise(player_id)
             return result.to_dict()
 
@@ -114,7 +137,7 @@ def create_tools_for_player(player_id: str) -> list:
         Song segments are pieces of the legendary Hero's Ballad
         that must be collected to complete the final quest.
         """
-        with get_session() as session:
+        with _get_session(session_factory) as session:
             service = QuestService(session)
             result = service.collect_segment(player_id, segment_id)
             return result.to_dict()
@@ -124,7 +147,7 @@ def create_tools_for_player(player_id: str) -> list:
         Shows all segments collected and whether the player is
         ready for the final quest.
         """
-        with get_session() as session:
+        with _get_session(session_factory) as session:
             service = QuestService(session)
             result = service.get_inventory(player_id)
             return result.to_dict()
@@ -134,7 +157,7 @@ def create_tools_for_player(player_id: str) -> list:
         Must be at a tavern location. Performance rewards scale
         with the number of song segments collected.
         """
-        with get_session() as session:
+        with _get_session(session_factory) as session:
             service = QuestService(session)
             result = service.perform_at_tavern(player_id)
             return result.to_dict()
@@ -144,7 +167,7 @@ def create_tools_for_player(player_id: str) -> list:
         The final quest requires all song segments to be collected.
         Shows progress toward the goal.
         """
-        with get_session() as session:
+        with _get_session(session_factory) as session:
             service = QuestService(session)
             result = service.check_final_quest_ready(player_id)
             return result.to_dict()
@@ -154,7 +177,7 @@ def create_tools_for_player(player_id: str) -> list:
         Performs the complete Hero's Ballad to charm the monster.
         Requires all song segments to be collected.
         """
-        with get_session() as session:
+        with _get_session(session_factory) as session:
             service = QuestService(session)
             result = service.complete_final_quest(player_id)
             return result.to_dict()
@@ -218,16 +241,6 @@ def create_tools_for_player(player_id: str) -> list:
     return tools
 
 
-def get_mentor_tools() -> list:
-    """Get a list of tool names/descriptions (for testing without services).
-
-    Note: This returns empty list as tools require service context.
-    Use create_tools_for_player() to get actual tools.
-    """
-    return []
-
-
-# For backwards compatibility in tests
 def get_tool_definitions() -> list[dict]:
     """Get tool definitions for documentation/testing purposes."""
     return [

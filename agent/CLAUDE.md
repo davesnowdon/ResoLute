@@ -10,6 +10,8 @@ ResoLute is a music-learning adventure game that transforms New Year resolutions
 
 This is a hackathon project. The goal is to create a MVP that is easy to understand and extend later. It does NOT need to worry about scalability at the moment. Please favour simplicitly and readability and avoid patterns such as use of async intended to improve scalability.
 
+When making changes do not worry about backward compatibility. Prefer simplicity.
+
 ## Repository Structure
 
 ```

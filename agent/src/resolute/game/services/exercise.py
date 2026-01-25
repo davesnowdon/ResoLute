@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from resolute.core.result import Result
 from resolute.db.repositories import ExerciseRepository, PlayerRepository, WorldRepository
-from resolute.game.exercise_timer import get_exercise_timer
+from resolute.game.exercise_timer import ExerciseTimer
 from resolute.game.rewards import RewardCalculator
 from resolute.game.services.world import WorldService
 
@@ -12,12 +12,12 @@ from resolute.game.services.world import WorldService
 class ExerciseService:
     """Business logic for exercise/travel operations."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, timer: ExerciseTimer):
         self.session = session
         self.player_repo = PlayerRepository(session)
         self.world_repo = WorldRepository(session)
         self.exercise_repo = ExerciseRepository(session)
-        self.timer = get_exercise_timer()
+        self.timer = timer
 
     def start_travel(self, player_id: str, destination_id: int) -> Result[dict]:
         """Start travel to a destination (begins exercise timer)."""

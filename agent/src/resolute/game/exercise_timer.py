@@ -134,13 +134,3 @@ class ExerciseTimer:
         return session is not None and session.is_complete
 
 
-# Global timer instance
-_timer: ExerciseTimer | None = None
-
-
-def get_exercise_timer() -> ExerciseTimer:
-    """Get the global exercise timer instance."""
-    global _timer
-    if _timer is None:
-        _timer = ExerciseTimer()
-    return _timer
