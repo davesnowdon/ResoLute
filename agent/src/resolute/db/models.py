@@ -3,7 +3,7 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -136,7 +136,7 @@ class World(Base):
     # Relationships
     player: Mapped["Player"] = relationship(back_populates="worlds")
     locations: Mapped[list["Location"]] = relationship(
-        back_populates="world", cascade="all, delete"
+        back_populates="world", cascade="all, delete", lazy="selectin"
     )
 
     def to_dict(self) -> dict:
@@ -170,7 +170,9 @@ class Location(Base):
 
     # Relationships
     world: Mapped["World"] = relationship(back_populates="locations")
-    segments: Mapped[list["SongSegment"]] = relationship(back_populates="location")
+    segments: Mapped[list["SongSegment"]] = relationship(
+        back_populates="location", lazy="selectin"
+    )
 
     def to_dict(self, include_segments: bool = True) -> dict:
         """Convert location to dictionary for API responses.
@@ -236,7 +238,7 @@ class Song(Base):
 
     # Relationships
     segments: Mapped[list["SongSegment"]] = relationship(
-        back_populates="song", cascade="all, delete"
+        back_populates="song", cascade="all, delete", lazy="selectin"
     )
 
     def to_dict(self) -> dict:
@@ -302,8 +304,10 @@ class PlayerProgress(Base):
     completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
     # Unique constraint: one progress entry per player/type/reference combo
+    # Index for efficient lookups by player_id, progress_type, reference_id
     __table_args__ = (
         UniqueConstraint("player_id", "progress_type", "reference_id", name="uix_player_progress"),
+        Index("ix_player_progress_lookup", "player_id", "progress_type", "reference_id"),
     )
 
     # Relationships

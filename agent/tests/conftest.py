@@ -1,6 +1,49 @@
 """Pytest configuration and fixtures."""
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from resolute.db.models import Base
+
+
+@pytest.fixture
+def test_engine():
+    """Create an in-memory SQLite database engine for testing."""
+    engine = create_engine("sqlite:///:memory:", echo=False, future=True)
+    Base.metadata.create_all(engine)
+    yield engine
+    Base.metadata.drop_all(engine)
+    engine.dispose()
+
+
+@pytest.fixture
+def test_session_factory(test_engine):
+    """Create a session factory bound to the test engine."""
+    return sessionmaker(test_engine, class_=Session, expire_on_commit=False)
+
+
+@pytest.fixture
+def test_session(test_session_factory):
+    """Provide a test database session that auto-commits."""
+    session = test_session_factory()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+@pytest.fixture
+def seeded_test_session(test_session):
+    """Provide a test session with seed data (exercises and songs)."""
+    from resolute.db.seed_data import seed_exercises_and_songs
+
+    seed_exercises_and_songs(test_session)
+    return test_session
 
 
 @pytest.fixture(autouse=True)
