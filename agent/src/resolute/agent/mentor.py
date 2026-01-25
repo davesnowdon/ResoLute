@@ -77,7 +77,7 @@ class MentorAgent:
 
         return config
 
-    async def achat(self, message: str, thread_id: str | None = None) -> str:
+    def chat(self, message: str, thread_id: str | None = None) -> str:
         """Send a message to the agent and get a response.
 
         Args:
@@ -99,8 +99,8 @@ class MentorAgent:
         ]
 
         try:
-            # Invoke the agent
-            result = await self.agent.ainvoke(
+            # Invoke the agent (sync)
+            result = self.agent.invoke(
                 {"messages": messages},
                 config=config,
             )
@@ -116,17 +116,3 @@ class MentorAgent:
         except Exception as e:
             logger.error(f"Error in agent chat: {e}")
             return f"Apologies, adventurer. I encountered a mystical interference: {str(e)}"
-
-    def chat(self, message: str, thread_id: str | None = None) -> str:
-        """Synchronous version of chat.
-
-        Args:
-            message: The user's message.
-            thread_id: Optional thread ID for conversation persistence.
-
-        Returns:
-            The agent's response.
-        """
-        import asyncio
-
-        return asyncio.run(self.achat(message, thread_id))

@@ -1,6 +1,5 @@
 """Exercise timer tracking for timed practice sessions."""
 
-import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -133,18 +132,6 @@ class ExerciseTimer:
         """Check if a player can complete their exercise (timer finished)."""
         session = self.get_session(player_id)
         return session is not None and session.is_complete
-
-    async def wait_for_completion(
-        self, player_id: str, check_interval: float = 1.0
-    ) -> ExerciseSession | None:
-        """Wait for an exercise session to complete (useful for testing)."""
-        while True:
-            session = self.get_session(player_id)
-            if session is None:
-                return None
-            if session.is_complete:
-                return session
-            await asyncio.sleep(check_interval)
 
 
 # Global timer instance
