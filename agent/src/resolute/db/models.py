@@ -32,6 +32,22 @@ class ExerciseType(str, Enum):
     SIGHT_READING = "sight_reading"
 
 
+class SkillType(str, Enum):
+    """Types of player skills that can be improved."""
+
+    RHYTHM = "rhythm"
+    MELODY = "melody"
+    HARMONY = "harmony"
+
+
+# Mapping from SkillType to Player attribute names
+SKILL_ATTR_MAP: dict[SkillType, str] = {
+    SkillType.RHYTHM: "skill_rhythm",
+    SkillType.MELODY: "skill_melody",
+    SkillType.HARMONY: "skill_harmony",
+}
+
+
 class ProgressType(str, Enum):
     """Types of progress that can be tracked."""
 
@@ -79,6 +95,12 @@ class Player(Base):
     )
     current_location: Mapped["Location | None"] = relationship(foreign_keys=[current_location_id])
 
+    def update_skill(self, skill_type: "SkillType", delta: int) -> None:
+        """Update a skill by the given delta, capping at 100."""
+        attr_name = SKILL_ATTR_MAP[skill_type]
+        current_value = getattr(self, attr_name)
+        setattr(self, attr_name, min(100, current_value + delta))
+
     def to_dict(self) -> dict:
         """Convert player to dictionary for API responses."""
         return {
@@ -89,9 +111,9 @@ class Player(Base):
             "gold": self.gold,
             "reputation": self.reputation,
             "skills": {
-                "rhythm": self.skill_rhythm,
-                "melody": self.skill_melody,
-                "harmony": self.skill_harmony,
+                SkillType.RHYTHM.value: self.skill_rhythm,
+                SkillType.MELODY.value: self.skill_melody,
+                SkillType.HARMONY.value: self.skill_harmony,
             },
             "current_location_id": self.current_location_id,
         }

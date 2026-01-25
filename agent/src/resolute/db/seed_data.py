@@ -3,7 +3,7 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from resolute.db.models import Exercise, ExerciseType, Song, SongSegment
+from resolute.db.models import Exercise, ExerciseType, SkillType, Song, SongSegment
 
 # Pre-defined exercises library
 EXERCISES = [
@@ -16,7 +16,7 @@ EXERCISES = [
         "instructions": "Tap along to a steady beat. Keep the tempo even as you march in place.",
         "xp_reward": 10,
         "gold_reward": 5,
-        "skill_bonus": "rhythm",
+        "skill_bonus": SkillType.RHYTHM.value,
     },
     {
         "name": "Clap and Count",
@@ -26,7 +26,7 @@ EXERCISES = [
         "instructions": "Clap on beats 1 and 3 while counting 1-2-3-4 out loud.",
         "xp_reward": 15,
         "gold_reward": 8,
-        "skill_bonus": "rhythm",
+        "skill_bonus": SkillType.RHYTHM.value,
     },
     {
         "name": "Syncopation Challenge",
@@ -36,7 +36,7 @@ EXERCISES = [
         "instructions": "Clap on the off-beats (the 'and' of each count). Feel the groove!",
         "xp_reward": 25,
         "gold_reward": 12,
-        "skill_bonus": "rhythm",
+        "skill_bonus": SkillType.RHYTHM.value,
     },
     {
         "name": "Polyrhythm Practice",
@@ -46,7 +46,7 @@ EXERCISES = [
         "instructions": "Tap 3 beats with your right hand while tapping 2 beats with your left.",
         "xp_reward": 40,
         "gold_reward": 20,
-        "skill_bonus": "rhythm",
+        "skill_bonus": SkillType.RHYTHM.value,
     },
     # Melody exercises
     {
@@ -57,7 +57,7 @@ EXERCISES = [
         "instructions": "Sing or hum a major scale going up: Do-Re-Mi-Fa-Sol-La-Ti-Do.",
         "xp_reward": 10,
         "gold_reward": 5,
-        "skill_bonus": "melody",
+        "skill_bonus": SkillType.MELODY.value,
     },
     {
         "name": "Interval Jumps",
@@ -67,7 +67,7 @@ EXERCISES = [
         "instructions": "Practice singing intervals: start on any note, jump up a third, then a fifth.",
         "xp_reward": 20,
         "gold_reward": 10,
-        "skill_bonus": "melody",
+        "skill_bonus": SkillType.MELODY.value,
     },
     {
         "name": "Melodic Contour",
@@ -77,7 +77,7 @@ EXERCISES = [
         "instructions": "Listen to a short melody and trace its shape in the air with your finger.",
         "xp_reward": 25,
         "gold_reward": 12,
-        "skill_bonus": "melody",
+        "skill_bonus": SkillType.MELODY.value,
     },
     {
         "name": "Improvisation Journey",
@@ -87,7 +87,7 @@ EXERCISES = [
         "instructions": "Create your own melody using only 5 notes (pentatonic scale). Let it flow!",
         "xp_reward": 50,
         "gold_reward": 25,
-        "skill_bonus": "melody",
+        "skill_bonus": SkillType.MELODY.value,
     },
     # Harmony exercises
     {
@@ -98,7 +98,7 @@ EXERCISES = [
         "instructions": "Listen to chords and identify if they are major (happy) or minor (sad).",
         "xp_reward": 15,
         "gold_reward": 8,
-        "skill_bonus": "harmony",
+        "skill_bonus": SkillType.HARMONY.value,
     },
     {
         "name": "Root Note Hunt",
@@ -108,7 +108,7 @@ EXERCISES = [
         "instructions": "When you hear a chord, try to sing or hum the lowest note (the root).",
         "xp_reward": 20,
         "gold_reward": 10,
-        "skill_bonus": "harmony",
+        "skill_bonus": SkillType.HARMONY.value,
     },
     {
         "name": "Chord Progressions",
@@ -118,7 +118,7 @@ EXERCISES = [
         "instructions": "Listen to a I-IV-V-I progression. Feel how the chords want to resolve home.",
         "xp_reward": 35,
         "gold_reward": 18,
-        "skill_bonus": "harmony",
+        "skill_bonus": SkillType.HARMONY.value,
     },
     {
         "name": "Voice Leading",
@@ -128,7 +128,7 @@ EXERCISES = [
         "instructions": "Sing the top note of each chord as they change. Keep your voice moving smoothly.",
         "xp_reward": 60,
         "gold_reward": 30,
-        "skill_bonus": "harmony",
+        "skill_bonus": SkillType.HARMONY.value,
     },
     # Ear training exercises
     {
@@ -139,7 +139,7 @@ EXERCISES = [
         "instructions": "Listen to a note and try to match it with your voice. Hold it steady.",
         "xp_reward": 10,
         "gold_reward": 5,
-        "skill_bonus": "melody",
+        "skill_bonus": SkillType.MELODY.value,
     },
     {
         "name": "Interval Identification",
@@ -149,7 +149,7 @@ EXERCISES = [
         "instructions": "Listen to two notes and identify the interval between them.",
         "xp_reward": 25,
         "gold_reward": 12,
-        "skill_bonus": "melody",
+        "skill_bonus": SkillType.MELODY.value,
     },
     {
         "name": "Melody Memory",
@@ -159,7 +159,7 @@ EXERCISES = [
         "instructions": "Listen to a 4-note melody, then sing it back from memory.",
         "xp_reward": 35,
         "gold_reward": 18,
-        "skill_bonus": "melody",
+        "skill_bonus": SkillType.MELODY.value,
     },
     # Sight reading exercises
     {
@@ -170,7 +170,7 @@ EXERCISES = [
         "instructions": "Look at notes on the staff and say their letter names out loud.",
         "xp_reward": 10,
         "gold_reward": 5,
-        "skill_bonus": "melody",
+        "skill_bonus": SkillType.MELODY.value,
     },
     {
         "name": "Rhythm Reading",
@@ -180,7 +180,7 @@ EXERCISES = [
         "instructions": "Clap the rhythm you see on the page. Watch for quarter and eighth notes.",
         "xp_reward": 20,
         "gold_reward": 10,
-        "skill_bonus": "rhythm",
+        "skill_bonus": SkillType.RHYTHM.value,
     },
 ]
 
