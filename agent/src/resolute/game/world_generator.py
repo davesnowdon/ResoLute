@@ -1,6 +1,8 @@
 """AI-powered world generation for ResoLute."""
 
+import asyncio
 import json
+import logging
 import re
 from typing import Any
 
@@ -10,20 +12,33 @@ from resolute.agent.prompts import WORLD_GENERATION_PROMPT
 from resolute.config import get_settings
 from resolute.db.models import ExerciseType, LocationType
 
+logger = logging.getLogger(__name__)
+
 
 class WorldGenerator:
     """Generates unique fantasy worlds using AI."""
 
     def __init__(self, model: ChatGoogleGenerativeAI | None = None):
+        logger.info("WorldGenerator.__init__ starting...")
         if model is None:
             settings = get_settings()
+            logger.info(f"Creating ChatGoogleGenerativeAI with model={settings.gemini_model}")
             self._model = ChatGoogleGenerativeAI(
                 model=settings.gemini_model,
                 google_api_key=settings.google_api_key,
                 temperature=0.9,  # Higher creativity for world generation
             )
+            logger.info("ChatGoogleGenerativeAI created successfully")
         else:
             self._model = model
+        logger.info("WorldGenerator.__init__ complete")
+
+    async def _agenerate(self, prompt: str) -> str:
+        """Async implementation of generation."""
+        logger.info("_agenerate: calling model.ainvoke()...")
+        response = await self._model.ainvoke(prompt)
+        logger.info("_agenerate: model.ainvoke() returned successfully")
+        return response.content
 
     def generate_world(
         self, player_id: str, player_name: str | None = None
@@ -32,13 +47,17 @@ class WorldGenerator:
         name = player_name or f"Bard {player_id[:8]}"
 
         prompt = WORLD_GENERATION_PROMPT.format(player_name=name)
+        logger.info(f"generate_world: prompt length={len(prompt)}")
 
-        response = self._model.invoke(prompt)
-
-        # Parse the JSON response
-        world_data = self._parse_world_response(response.content)
-
-        return world_data
+        try:
+            # Use async like MentorAgent does - run in new event loop
+            content = asyncio.run(self._agenerate(prompt))
+            # Parse the JSON response
+            world_data = self._parse_world_response(content)
+            return world_data
+        except Exception as e:
+            logger.warning(f"World generation failed, using default world: {e}")
+            return self._get_default_world()
 
     def _parse_world_response(self, content: str) -> dict[str, Any]:
         """Parse the AI response into structured world data."""
