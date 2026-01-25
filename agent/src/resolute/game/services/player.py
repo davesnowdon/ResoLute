@@ -3,7 +3,7 @@
 from sqlalchemy.orm import Session
 
 from resolute.core.result import Result
-from resolute.db.models import LocationType, Player
+from resolute.db.models import LocationType, Player, SkillType
 from resolute.db.repositories import PlayerRepository, ProgressRepository, WorldRepository
 from resolute.game.rewards import RewardCalculator
 
@@ -44,7 +44,7 @@ class PlayerService:
         xp_delta: int = 0,
         gold_delta: int = 0,
         reputation_delta: int = 0,
-        skill_type: str | None = None,
+        skill_type: SkillType | None = None,
         skill_delta: int = 0,
     ) -> Result[Player]:
         """Update player stats and check for level up."""
@@ -59,12 +59,7 @@ class PlayerService:
 
         # Update specific skill
         if skill_type and skill_delta:
-            if skill_type == "rhythm":
-                player.skill_rhythm = min(100, player.skill_rhythm + skill_delta)
-            elif skill_type == "melody":
-                player.skill_melody = min(100, player.skill_melody + skill_delta)
-            elif skill_type == "harmony":
-                player.skill_harmony = min(100, player.skill_harmony + skill_delta)
+            player.update_skill(skill_type, skill_delta)
 
         # Check for level up
         leveled_up, new_level = RewardCalculator.check_level_up(old_xp, player.xp)

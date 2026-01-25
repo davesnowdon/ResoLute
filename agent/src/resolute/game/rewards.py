@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from resolute.db.models import Exercise
+from resolute.db.models import Exercise, SkillType
 
 
 @dataclass
@@ -11,7 +11,7 @@ class RewardResult:
 
     xp_gained: int
     gold_gained: int
-    skill_bonus_type: str
+    skill_bonus_type: SkillType | None
     skill_bonus_amount: int
     level_up: bool = False
     new_level: int | None = None
@@ -21,7 +21,7 @@ class RewardResult:
         return {
             "xp_gained": self.xp_gained,
             "gold_gained": self.gold_gained,
-            "skill_bonus_type": self.skill_bonus_type,
+            "skill_bonus_type": self.skill_bonus_type.value if self.skill_bonus_type else None,
             "skill_bonus_amount": self.skill_bonus_amount,
             "level_up": self.level_up,
             "new_level": self.new_level,
@@ -72,7 +72,7 @@ class RewardCalculator:
         return RewardResult(
             xp_gained=xp_gained,
             gold_gained=gold_gained,
-            skill_bonus_type=exercise.skill_bonus,
+            skill_bonus_type=SkillType(exercise.skill_bonus) if exercise.skill_bonus else None,
             skill_bonus_amount=skill_bonus,
         )
 

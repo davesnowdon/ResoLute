@@ -99,12 +99,7 @@ class ExerciseService:
         player.gold += reward.gold_gained
 
         if reward.skill_bonus_type:
-            if reward.skill_bonus_type == "rhythm":
-                player.skill_rhythm = min(100, player.skill_rhythm + reward.skill_bonus_amount)
-            elif reward.skill_bonus_type == "melody":
-                player.skill_melody = min(100, player.skill_melody + reward.skill_bonus_amount)
-            elif reward.skill_bonus_type == "harmony":
-                player.skill_harmony = min(100, player.skill_harmony + reward.skill_bonus_amount)
+            player.update_skill(reward.skill_bonus_type, reward.skill_bonus_amount)
 
         # Check for level up
         leveled_up, new_level = RewardCalculator.check_level_up(old_xp, player.xp)
