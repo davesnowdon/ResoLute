@@ -6,10 +6,34 @@ import logging
 import re
 from typing import Any
 
+from pydantic import BaseModel, Field
+
 from resolute.agent.prompts import WORLD_GENERATION_PROMPT
 from resolute.db.models import ExerciseType, LocationType
 
 logger = logging.getLogger(__name__)
+
+
+class LocationSchema(BaseModel):
+    """Schema for a world location."""
+
+    name: str = Field(description="Name of the location")
+    description: str = Field(description="Brief location description")
+    type: str = Field(default="village", description="village|tavern|path|dungeon")
+    exercise_focus: str = Field(
+        description="rhythm|melody|harmony|ear_training|sight_reading"
+    )
+
+
+class WorldSchema(BaseModel):
+    """Schema for AI-generated world data."""
+
+    name: str = Field(description="Name of the World")
+    theme: str = Field(description="Brief theme description")
+    story_arc: str = Field(description="2-3 sentence story about the quest")
+    final_monster: str = Field(description="Name of the monster")
+    rescue_target: str = Field(description="Who needs to be rescued")
+    locations: list[LocationSchema] = Field(description="List of 4-5 locations")
 
 
 class WorldGenerator:
@@ -25,6 +49,7 @@ class WorldGenerator:
         from resolute.llm import create_chat_model
 
         self._model = create_chat_model(model, temperature=0.9)
+        self._structured_model = self._model.with_structured_output(WorldSchema)
         logger.info("Chat model created successfully")
         self._tracer = tracer
         logger.info("WorldGenerator.__init__ complete")
@@ -37,6 +62,22 @@ class WorldGenerator:
         logger.info("_agenerate: model.ainvoke() returned successfully")
         return response.content
 
+    async def _agenerate_structured(self, prompt: str) -> WorldSchema | None:
+        """Generate world using structured output.
+
+        Returns:
+            WorldSchema if successful, None if structured output fails.
+        """
+        logger.info("_agenerate_structured: calling structured model...")
+        config = {"callbacks": [self._tracer]} if self._tracer else {}
+        try:
+            response = await self._structured_model.ainvoke(prompt, config=config)
+            logger.info("_agenerate_structured: structured output successful")
+            return response
+        except Exception as e:
+            logger.warning(f"Structured output failed: {type(e).__name__}: {e}")
+            return None
+
     def generate_world(
         self, player_id: str, player_name: str | None = None
     ) -> dict[str, Any]:
@@ -47,34 +88,43 @@ class WorldGenerator:
         logger.info(f"generate_world: prompt length={len(prompt)}")
 
         try:
-            # Use async like MentorAgent does - run in new event loop
+            # Try 1: Use structured output (most reliable)
+            world_schema = asyncio.run(self._agenerate_structured(prompt))
+            if world_schema is not None:
+                logger.info("World generated via structured output")
+                return self._validate_world_data(world_schema.model_dump())
+
+            # Try 2: Fall back to regex parsing of raw response
+            logger.info("Falling back to regex-based parsing")
             content = asyncio.run(self._agenerate(prompt))
-            # Parse the JSON response
-            world_data = self._parse_world_response(content)
-            return world_data
+            return self._parse_world_response(content)
         except Exception as e:
             logger.warning(f"World generation failed, using default world: {e}")
             return self._get_default_world()
 
     def _parse_world_response(self, content: str) -> dict[str, Any]:
         """Parse the AI response into structured world data."""
-        # Try to extract JSON from the response
+        content_preview = content[:500] + "..." if len(content) > 500 else content
+
+        # Try to extract JSON from markdown code block
         json_match = re.search(r"```json\s*(.*?)\s*```", content, re.DOTALL)
         if json_match:
             json_str = json_match.group(1)
         else:
-            # Try to find raw JSON
+            # Try to find raw JSON object
             json_match = re.search(r"\{[\s\S]*\}", content)
             if json_match:
                 json_str = json_match.group(0)
             else:
-                # Fall back to default world
+                logger.warning(f"No JSON found in response: {content_preview}")
                 return self._get_default_world()
 
         try:
             world_data = json.loads(json_str)
             return self._validate_world_data(world_data)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            json_preview = json_str[:200] + "..." if len(json_str) > 200 else json_str
+            logger.warning(f"JSON decode failed: {e}. Content: {json_preview}")
             return self._get_default_world()
 
     def _validate_world_data(self, data: dict) -> dict[str, Any]:
@@ -90,10 +140,16 @@ class WorldGenerator:
         ]
         for field in required_fields:
             if field not in data:
+                logger.warning(f"Missing required field: {field}")
                 return self._get_default_world()
 
         # Validate locations
         if not isinstance(data["locations"], list) or len(data["locations"]) < 3:
+            loc_info = (
+                f"type={type(data.get('locations')).__name__}, "
+                f"len={len(data['locations']) if isinstance(data.get('locations'), list) else 'N/A'}"
+            )
+            logger.warning(f"Invalid locations (expected list with 3+ items): {loc_info}")
             return self._get_default_world()
 
         # Normalize locations
