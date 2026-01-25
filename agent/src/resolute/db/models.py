@@ -1,6 +1,6 @@
 """SQLAlchemy models for ResoLute game."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 
 from sqlalchemy import ForeignKey, Index, String, Text, UniqueConstraint
@@ -85,8 +85,10 @@ class Player(Base):
     current_location_id: Mapped[int | None] = mapped_column(
         ForeignKey("locations.id"), nullable=True
     )
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+    )
 
     # Relationships
     worlds: Mapped[list["World"]] = relationship(back_populates="player", cascade="all, delete")
@@ -131,7 +133,7 @@ class World(Base):
     story_arc: Mapped[str] = mapped_column(Text)
     final_monster: Mapped[str] = mapped_column(String(200))
     rescue_target: Mapped[str] = mapped_column(String(200))
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
 
     # Relationships
     player: Mapped["Player"] = relationship(back_populates="worlds")
