@@ -83,7 +83,6 @@ class MentorAgent:
         return config
 
     async def _achat(self, message: str, thread_id: str) -> str:
-        """Async implementation of chat."""
         config = self._get_config(thread_id)
 
         # Build messages with system prompt

@@ -1,10 +1,14 @@
 """World service for business logic."""
 
+import logging
+
 from sqlalchemy.orm import Session
 
 from resolute.core.result import Result
 from resolute.db.models import LocationType, World
 from resolute.db.repositories import PlayerRepository, WorldRepository
+
+logger = logging.getLogger(__name__)
 
 
 class WorldService:
@@ -19,6 +23,7 @@ class WorldService:
         """Get player's world or indicate generation is needed."""
         world = self.world_repo.get_by_player_id(player_id)
         if world is None:
+            logger.debug(f"[{player_id}] World not found, needs generation")
             return Result.ok({"needs_generation": True, "player_id": player_id})
         return Result.ok({"needs_generation": False, "world": world.to_dict()})
 
@@ -26,6 +31,7 @@ class WorldService:
         """Get a player's world."""
         world = self.world_repo.get_by_player_id(player_id)
         if world is None:
+            logger.warning(f"[{player_id}] World not found")
             return Result.err("World not found")
         return Result.ok(world)
 
@@ -40,10 +46,13 @@ class WorldService:
         locations: list[dict],
     ) -> Result[World]:
         """Create a new world for a player with locations."""
+        logger.info(f"[{player_id}] Creating world: '{name}' with {len(locations)} locations")
+
         # Ensure player exists
         player = self.player_repo.get_by_id(player_id)
         if player is None:
             player = self.player_repo.create(player_id)
+            logger.debug(f"[{player_id}] Created new player for world")
 
         # Create world
         world = self.world_repo.create(
@@ -75,6 +84,12 @@ class WorldService:
         if first_location:
             player.current_location_id = first_location.id
             self.player_repo.update(player)
+            logger.info(f"[{player_id}] Starting location set: id={first_location.id}")
+
+        logger.info(
+            f"[{player_id}] World created: id={world.id}, "
+            f"monster='{final_monster}', rescue='{rescue_target}'"
+        )
 
         # Reload world with all relationships
         world = self.world_repo.get_by_player_id(player_id)
@@ -92,6 +107,11 @@ class WorldService:
         # Get song segments
         segments = self.world_repo.get_song_segments(song.id)
 
+        logger.debug(
+            f"Distributing {len(segments)} segments across "
+            f"{len(locations)} locations for world_id={world_id}"
+        )
+
         # Assign segments to locations
         for i, segment in enumerate(segments):
             if i < len(locations):
@@ -101,11 +121,14 @@ class WorldService:
         """Unlock the next location in sequence."""
         world = self.world_repo.get_by_player_id(player_id)
         if world is None:
+            logger.warning(f"[{player_id}] World not found for location unlock")
             return Result.err("World not found")
 
         for location in sorted(world.locations, key=lambda x: x.order_index):
             if not location.is_unlocked:
                 self.world_repo.unlock_location(location)
+                logger.info(f"[{player_id}] Location unlocked: '{location.name}' (id={location.id})")
                 return Result.ok(True)
 
+        logger.debug(f"[{player_id}] All locations already unlocked")
         return Result.ok(False)  # All locations already unlocked

@@ -1,5 +1,7 @@
 """Exercise service for business logic."""
 
+import logging
+
 from sqlalchemy.orm import Session
 
 from resolute.core.result import Result
@@ -7,6 +9,8 @@ from resolute.db.repositories import ExerciseRepository, PlayerRepository, World
 from resolute.game.exercise_timer import ExerciseTimer
 from resolute.game.rewards import RewardCalculator
 from resolute.game.services.world import WorldService
+
+logger = logging.getLogger(__name__)
 
 
 class ExerciseService:
@@ -23,10 +27,12 @@ class ExerciseService:
         """Start travel to a destination (begins exercise timer)."""
         player = self.player_repo.get_by_id(player_id)
         if player is None:
+            logger.warning(f"[{player_id}] Player not found for travel")
             return Result.err("Player not found")
 
         destination = self.world_repo.get_location_by_id(destination_id)
         if destination is None:
+            logger.warning(f"[{player_id}] Destination {destination_id} not found")
             return Result.err("Destination not found")
 
         # Get a random exercise appropriate for the path
@@ -40,6 +46,7 @@ class ExerciseService:
             exercise = self.exercise_repo.get_random()
 
         if exercise is None:
+            logger.warning(f"[{player_id}] No exercises available for travel")
             return Result.err("No exercises available")
 
         # Start exercise timer
@@ -49,6 +56,11 @@ class ExerciseService:
             exercise_name=exercise.name,
             duration_seconds=exercise.duration_seconds,
             destination_location_id=destination_id,
+        )
+
+        logger.info(
+            f"[{player_id}] Travel started to '{destination.name}' "
+            f"(exercise: {exercise.name}, {exercise.duration_seconds}s)"
         )
 
         return Result.ok({
@@ -62,6 +74,7 @@ class ExerciseService:
         """Check the status of a player's current exercise."""
         session_status = self.timer.check_session(player_id)
         if session_status is None:
+            logger.debug(f"[{player_id}] No active exercise")
             return Result.err("No active exercise")
         return Result.ok(session_status)
 
@@ -69,9 +82,14 @@ class ExerciseService:
         """Complete an exercise and award rewards."""
         exercise_session = self.timer.get_session(player_id)
         if exercise_session is None:
+            logger.warning(f"[{player_id}] No active exercise to complete")
             return Result.err("No active exercise")
 
         if not exercise_session.is_complete:
+            logger.warning(
+                f"[{player_id}] Exercise not complete "
+                f"({exercise_session.remaining_seconds:.0f}s remaining)"
+            )
             return Result.err(
                 f"Exercise not yet complete. {exercise_session.remaining_seconds:.0f}s remaining"
             )
@@ -79,10 +97,12 @@ class ExerciseService:
         # Get the exercise
         exercise = self.exercise_repo.get_by_id(exercise_session.exercise_id)
         if exercise is None:
+            logger.warning(f"[{player_id}] Exercise {exercise_session.exercise_id} not found")
             return Result.err("Exercise not found")
 
         player = self.player_repo.get_by_id(player_id)
         if player is None:
+            logger.warning(f"[{player_id}] Player not found for exercise completion")
             return Result.err("Player not found")
 
         # Calculate rewards
@@ -105,10 +125,17 @@ class ExerciseService:
         leveled_up, new_level = RewardCalculator.check_level_up(old_xp, player.xp)
         if leveled_up:
             player.level = new_level
+            logger.info(f"[{player_id}] Level up! {old_level} -> {new_level}")
+
+        logger.info(
+            f"[{player_id}] Exercise completed: '{exercise.name}' -> "
+            f"xp+{reward.xp_gained}, gold+{reward.gold_gained}"
+        )
 
         # Update location if traveling
         if exercise_session.destination_location_id:
             player.current_location_id = exercise_session.destination_location_id
+            logger.info(f"[{player_id}] Arrived at location_id={exercise_session.destination_location_id}")
 
             # Unlock next location
             world_service = WorldService(self.session)
