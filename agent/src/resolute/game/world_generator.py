@@ -11,6 +11,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from resolute.agent.prompts import WORLD_GENERATION_PROMPT
 from resolute.config import get_settings
 from resolute.db.models import ExerciseType, LocationType
+from resolute.tracing import get_tracer
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +32,14 @@ class WorldGenerator:
             logger.info("ChatGoogleGenerativeAI created successfully")
         else:
             self._model = model
+        self._tracer = get_tracer()
         logger.info("WorldGenerator.__init__ complete")
 
     async def _agenerate(self, prompt: str) -> str:
         """Async implementation of generation."""
         logger.info("_agenerate: calling model.ainvoke()...")
-        response = await self._model.ainvoke(prompt)
+        config = {"callbacks": [self._tracer]} if self._tracer else {}
+        response = await self._model.ainvoke(prompt, config=config)
         logger.info("_agenerate: model.ainvoke() returned successfully")
         return response.content
 
