@@ -6,7 +6,7 @@ from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
 from resolute.db.session import get_session
-from resolute.game.state_manager import GameStateManager
+from resolute.game.services import ExerciseService, PlayerService, QuestService
 
 
 # Input schemas for tools that need parameters
@@ -40,11 +40,9 @@ def create_tools_for_player(player_id: str) -> list:
         Returns player level, XP, gold, reputation, and skill levels.
         """
         with get_session() as session:
-            state_manager = GameStateManager(session)
-            stats = state_manager.get_player_stats(player_id)
-            if stats is None:
-                return {"error": "Player not found"}
-            return stats
+            service = PlayerService(session)
+            result = service.get_stats(player_id)
+            return result.to_dict()
 
     def get_current_location() -> dict[str, Any]:
         """Get the player's current location and available actions.
@@ -52,11 +50,9 @@ def create_tools_for_player(player_id: str) -> list:
         and any collectible song segments.
         """
         with get_session() as session:
-            state_manager = GameStateManager(session)
-            location = state_manager.get_current_location(player_id)
-            if location is None:
-                return {"error": "Player has no current location. World may need to be generated."}
-            return location
+            service = PlayerService(session)
+            result = service.get_current_location(player_id)
+            return result.to_dict()
 
     def start_travel(destination_name: str) -> dict[str, Any]:
         """Start traveling to a new location.
@@ -64,12 +60,18 @@ def create_tools_for_player(player_id: str) -> list:
         before arriving at the destination.
         """
         with get_session() as session:
-            state_manager = GameStateManager(session)
-            location_info = state_manager.get_current_location(player_id)
-            if location_info is None:
-                return {"error": "Cannot determine current location"}
+            player_service = PlayerService(session)
+            exercise_service = ExerciseService(session)
 
+            # Get current location to find destination
+            loc_result = player_service.get_current_location(player_id)
+            if loc_result.is_err:
+                return loc_result.to_dict()
+
+            location_info = loc_result.unwrap()
             destinations = location_info.get("available_destinations", [])
+
+            # Find matching destination
             destination = None
             for dest in destinations:
                 if dest["name"].lower() == destination_name.lower():
@@ -83,19 +85,19 @@ def create_tools_for_player(player_id: str) -> list:
                     "available_destinations": available,
                 }
 
-            result = state_manager.start_travel(player_id, destination["id"])
-            return result
+            result = exercise_service.start_travel(player_id, destination["id"])
+            return result.to_dict()
 
     def check_exercise() -> dict[str, Any]:
         """Check the status of the current exercise.
         Shows time remaining and whether the exercise can be completed.
         """
         with get_session() as session:
-            state_manager = GameStateManager(session)
-            status = state_manager.check_exercise(player_id)
-            if status is None:
-                return {"status": "no_active_exercise", "message": "No exercise in progress"}
-            return status
+            service = ExerciseService(session)
+            result = service.check_exercise(player_id)
+            if result.is_err:
+                return {"status": "no_active_exercise", "message": result.error}
+            return result.to_dict()
 
     def complete_exercise() -> dict[str, Any]:
         """Complete the current exercise and receive rewards.
@@ -103,9 +105,9 @@ def create_tools_for_player(player_id: str) -> list:
         Awards XP, gold, and skill bonuses.
         """
         with get_session() as session:
-            state_manager = GameStateManager(session)
-            result = state_manager.complete_exercise(player_id)
-            return result
+            service = ExerciseService(session)
+            result = service.complete_exercise(player_id)
+            return result.to_dict()
 
     def collect_song_segment(segment_id: int) -> dict[str, Any]:
         """Collect a song segment from the current location.
@@ -113,9 +115,9 @@ def create_tools_for_player(player_id: str) -> list:
         that must be collected to complete the final quest.
         """
         with get_session() as session:
-            state_manager = GameStateManager(session)
-            result = state_manager.collect_segment(player_id, segment_id)
-            return result
+            service = QuestService(session)
+            result = service.collect_segment(player_id, segment_id)
+            return result.to_dict()
 
     def get_inventory() -> dict[str, Any]:
         """Get the player's inventory of collected song segments.
@@ -123,9 +125,9 @@ def create_tools_for_player(player_id: str) -> list:
         ready for the final quest.
         """
         with get_session() as session:
-            state_manager = GameStateManager(session)
-            inventory = state_manager.get_inventory(player_id)
-            return inventory
+            service = QuestService(session)
+            result = service.get_inventory(player_id)
+            return result.to_dict()
 
     def perform_at_tavern() -> dict[str, Any]:
         """Perform at the tavern to earn gold and reputation.
@@ -133,9 +135,9 @@ def create_tools_for_player(player_id: str) -> list:
         with the number of song segments collected.
         """
         with get_session() as session:
-            state_manager = GameStateManager(session)
-            result = state_manager.perform_at_tavern(player_id)
-            return result
+            service = QuestService(session)
+            result = service.perform_at_tavern(player_id)
+            return result.to_dict()
 
     def check_final_quest_ready() -> dict[str, Any]:
         """Check if the player is ready for the final quest.
@@ -143,9 +145,9 @@ def create_tools_for_player(player_id: str) -> list:
         Shows progress toward the goal.
         """
         with get_session() as session:
-            state_manager = GameStateManager(session)
-            result = state_manager.check_final_quest_ready(player_id)
-            return result
+            service = QuestService(session)
+            result = service.check_final_quest_ready(player_id)
+            return result.to_dict()
 
     def attempt_final_quest() -> dict[str, Any]:
         """Attempt the final quest to rescue the captive.
@@ -153,9 +155,9 @@ def create_tools_for_player(player_id: str) -> list:
         Requires all song segments to be collected.
         """
         with get_session() as session:
-            state_manager = GameStateManager(session)
-            result = state_manager.complete_final_quest(player_id)
-            return result
+            service = QuestService(session)
+            result = service.complete_final_quest(player_id)
+            return result.to_dict()
 
     # Create StructuredTool instances (using func for sync tools)
     tools = [
@@ -217,9 +219,9 @@ def create_tools_for_player(player_id: str) -> list:
 
 
 def get_mentor_tools() -> list:
-    """Get a list of tool names/descriptions (for testing without state_manager).
+    """Get a list of tool names/descriptions (for testing without services).
 
-    Note: This returns empty list as tools require state_manager context.
+    Note: This returns empty list as tools require service context.
     Use create_tools_for_player() to get actual tools.
     """
     return []

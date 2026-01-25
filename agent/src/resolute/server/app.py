@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from resolute.agent import MentorAgent
 from resolute.config import get_settings
 from resolute.db.session import get_session, init_db
-from resolute.game.state_manager import GameStateManager
+from resolute.game.services import ExerciseService, PlayerService, QuestService, WorldService
 from resolute.game.world_generator import get_world_generator
 from resolute.server.messages import (
     ClientMessage,
@@ -49,9 +49,14 @@ class ConnectionManager:
 
         # Check if player has a world
         with get_session() as session:
-            state_manager = GameStateManager(session)
-            player = state_manager.get_or_create_player(player_id)
-            world_result = state_manager.get_or_generate_world(player_id)
+            player_service = PlayerService(session)
+            world_service = WorldService(session)
+
+            player_result = player_service.get_or_create(player_id)
+            player = player_result.unwrap()
+
+            world_result = world_service.get_or_generate(player_id)
+            world_data = world_result.unwrap()
 
             # Create agent - tools create their own sessions
             agent = MentorAgent(
@@ -60,7 +65,7 @@ class ConnectionManager:
             )
             self.agents[player_id] = agent
 
-            needs_world = world_result.get("needs_generation", False)
+            needs_world = world_data.get("needs_generation", False)
 
         logger.info(f"Player connected: {player_id} (needs_world={needs_world})")
         return needs_world
@@ -120,50 +125,64 @@ def handle_world_request(player_id: str) -> ServerMessage:
     """Handle world state request, generating if needed."""
     logger.info(f"[{player_id}] World request")
     with get_session() as session:
-        state_manager = GameStateManager(session)
-        world_result = state_manager.get_or_generate_world(player_id)
+        world_service = WorldService(session)
+        player_service = PlayerService(session)
 
-        if world_result.get("needs_generation"):
+        result = world_service.get_or_generate(player_id)
+        if result.is_err:
+            return error_message(result.error)
+
+        world_data = result.unwrap()
+
+        if world_data.get("needs_generation"):
             # Generate a new world (sync AI call)
             logger.info(f"[{player_id}] Generating new world...")
             generator = get_world_generator()
-            player = state_manager.get_player(player_id)
-            player_name = player.name if player else f"Bard {player_id[:8]}"
+
+            player_result = player_service.get_player(player_id)
+            player_name = player_result.unwrap().name if player_result.is_ok else f"Bard {player_id[:8]}"
 
             try:
-                world_data = generator.generate_world(player_id, player_name)
-                logger.info(f"[{player_id}] World generated: {world_data.get('name', 'unknown')}")
+                generated_data = generator.generate_world(player_id, player_name)
+                logger.info(f"[{player_id}] World generated: {generated_data.get('name', 'unknown')}")
 
                 # Create the world in the database
-                world = state_manager.create_world(
+                create_result = world_service.create_world(
                     player_id=player_id,
-                    name=world_data["name"],
-                    theme=world_data["theme"],
-                    story_arc=world_data["story_arc"],
-                    final_monster=world_data["final_monster"],
-                    rescue_target=world_data["rescue_target"],
-                    locations=world_data["locations"],
+                    name=generated_data["name"],
+                    theme=generated_data["theme"],
+                    story_arc=generated_data["story_arc"],
+                    final_monster=generated_data["final_monster"],
+                    rescue_target=generated_data["rescue_target"],
+                    locations=generated_data["locations"],
                 )
 
+                if create_result.is_err:
+                    return error_message(create_result.error)
+
+                world = create_result.unwrap()
                 return world_state_message(world.to_dict())
             except Exception as e:
                 logger.error(f"World generation failed: {e}")
                 return error_message(f"Failed to generate world: {str(e)}")
         else:
-            return world_state_message(world_result["world"])
+            return world_state_message(world_data["world"])
 
 
 def handle_travel_request(player_id: str, destination: str) -> ServerMessage:
     """Handle travel request to start an exercise."""
     with get_session() as session:
-        state_manager = GameStateManager(session)
+        player_service = PlayerService(session)
+        exercise_service = ExerciseService(session)
 
         # Get available destinations
-        location_info = state_manager.get_current_location(player_id)
-        if location_info is None:
-            return error_message("You have no current location")
+        loc_result = player_service.get_current_location(player_id)
+        if loc_result.is_err:
+            return error_message(loc_result.error)
 
+        location_info = loc_result.unwrap()
         destinations = location_info.get("available_destinations", [])
+
         dest_match = None
         for d in destinations:
             if destination.lower() in d["name"].lower():
@@ -174,32 +193,29 @@ def handle_travel_request(player_id: str, destination: str) -> ServerMessage:
             available = [d["name"] for d in destinations]
             return error_message(f"Unknown destination. Available: {', '.join(available)}")
 
-        result = state_manager.start_travel(player_id, dest_match["id"])
+        result = exercise_service.start_travel(player_id, dest_match["id"])
+        if result.is_err:
+            return error_message(result.error)
 
-        if "error" in result:
-            return error_message(result["error"])
-
-        return exercise_state_message(result["session"])
+        return exercise_state_message(result.unwrap()["session"])
 
 
 def handle_exercise_request(player_id: str, action: str) -> ServerMessage:
     """Handle exercise actions (check/complete)."""
     with get_session() as session:
-        state_manager = GameStateManager(session)
+        exercise_service = ExerciseService(session)
 
         if action == "check":
-            status = state_manager.check_exercise(player_id)
-            if status is None:
-                return error_message("No active exercise")
-            return exercise_state_message(status)
+            result = exercise_service.check_exercise(player_id)
+            if result.is_err:
+                return error_message(result.error)
+            return exercise_state_message(result.unwrap())
 
         elif action == "complete":
-            result = state_manager.complete_exercise(player_id)
-            if "error" in result:
-                return error_message(result["error"])
-
-            # Also send location update
-            return exercise_complete_message(result)
+            result = exercise_service.complete_exercise(player_id)
+            if result.is_err:
+                return error_message(result.error)
+            return exercise_complete_message(result.unwrap())
 
         else:
             return error_message(f"Unknown exercise action: {action}")
@@ -208,50 +224,54 @@ def handle_exercise_request(player_id: str, action: str) -> ServerMessage:
 def handle_collect_request(player_id: str, segment_id: int) -> ServerMessage:
     """Handle segment collection."""
     with get_session() as session:
-        state_manager = GameStateManager(session)
-        result = state_manager.collect_segment(player_id, segment_id)
+        quest_service = QuestService(session)
+        result = quest_service.collect_segment(player_id, segment_id)
 
-        if "error" in result:
-            return error_message(result["error"])
+        if result.is_err:
+            return error_message(result.error)
 
-        return segment_collected_message(result)
+        return segment_collected_message(result.unwrap())
 
 
 def handle_perform_request(player_id: str) -> ServerMessage:
     """Handle tavern performance."""
     with get_session() as session:
-        state_manager = GameStateManager(session)
-        result = state_manager.perform_at_tavern(player_id)
+        quest_service = QuestService(session)
+        result = quest_service.perform_at_tavern(player_id)
 
-        if "error" in result:
-            return error_message(result["error"])
+        if result.is_err:
+            return error_message(result.error)
 
-        return performance_result_message(result)
+        return performance_result_message(result.unwrap())
 
 
 def handle_final_quest_request(player_id: str, action: str) -> ServerMessage:
     """Handle final quest actions."""
     with get_session() as session:
-        state_manager = GameStateManager(session)
+        quest_service = QuestService(session)
 
         if action == "check":
-            result = state_manager.check_final_quest_ready(player_id)
+            result = quest_service.check_final_quest_ready(player_id)
+            if result.is_err:
+                return error_message(result.error)
+
+            data = result.unwrap()
             content = (
                 "You are ready for the final quest!"
-                if result["ready"]
-                else f"Collect more segments: {result['segments_collected']}/{result['segments_required']}"
+                if data["ready"]
+                else f"Collect more segments: {data['segments_collected']}/{data['segments_required']}"
             )
             return ServerMessage(
                 type="response",
                 content=content,
-                data=result,
+                data=data,
             )
 
         elif action == "attempt":
-            result = state_manager.complete_final_quest(player_id)
-            if "error" in result:
-                return error_message(result["error"])
-            return game_complete_message(result)
+            result = quest_service.complete_final_quest(player_id)
+            if result.is_err:
+                return error_message(result.error)
+            return game_complete_message(result.unwrap())
 
         else:
             return error_message(f"Unknown final quest action: {action}")
@@ -260,9 +280,13 @@ def handle_final_quest_request(player_id: str, action: str) -> ServerMessage:
 def handle_inventory_request(player_id: str) -> ServerMessage:
     """Handle inventory request."""
     with get_session() as session:
-        state_manager = GameStateManager(session)
-        inventory = state_manager.get_inventory(player_id)
-        return inventory_update_message(inventory)
+        quest_service = QuestService(session)
+        result = quest_service.get_inventory(player_id)
+
+        if result.is_err:
+            return error_message(result.error)
+
+        return inventory_update_message(result.unwrap())
 
 
 def handle_chat_with_context(player_id: str, message: str) -> ServerMessage:

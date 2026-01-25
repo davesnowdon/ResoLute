@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ResoLute is a music-learning adventure game that transforms New Year resolutions into a D&D-inspired fantasy quest. Players become bards guided by an AI mentor, learning music through dynamic quests and adaptive challenges.
 
+## Guidelines
+
+This is a hackathon project. The goal is to create a MVP that is easy to understand and extend later. It does NOT need to worry about scalability at the moment. Please favour simplicitly and readability and avoid patterns such as use of async intended to improve scalability.
+
 ## Repository Structure
 
 ```
