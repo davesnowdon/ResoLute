@@ -25,7 +25,7 @@ class WorldGenerator:
         else:
             self._model = model
 
-    async def generate_world(
+    def generate_world(
         self, player_id: str, player_name: str | None = None
     ) -> dict[str, Any]:
         """Generate a new world for a player using AI."""
@@ -33,7 +33,7 @@ class WorldGenerator:
 
         prompt = WORLD_GENERATION_PROMPT.format(player_name=name)
 
-        response = await self._model.ainvoke(prompt)
+        response = self._model.invoke(prompt)
 
         # Parse the JSON response
         world_data = self._parse_world_response(response.content)

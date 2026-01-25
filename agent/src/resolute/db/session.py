@@ -1,35 +1,19 @@
 """Database session management for SQLAlchemy.
 
-Uses synchronous sessions for all operations to avoid greenlet/async issues.
-Async engine is only used for table creation.
+Uses synchronous sessions for all operations.
 """
 
 from collections.abc import Generator
 from contextlib import contextmanager
 
 from sqlalchemy import Engine, create_engine
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from resolute.config import get_settings
 from resolute.db.models import Base
 
-_async_engine: AsyncEngine | None = None
 _sync_engine: Engine | None = None
 _session_factory: sessionmaker[Session] | None = None
-
-
-def _get_async_engine() -> AsyncEngine:
-    """Get or create the async database engine (for table creation only)."""
-    global _async_engine
-    if _async_engine is None:
-        settings = get_settings()
-        _async_engine = create_async_engine(
-            settings.database_url,
-            echo=False,
-            future=True,
-        )
-    return _async_engine
 
 
 def get_engine() -> Engine:
@@ -37,7 +21,7 @@ def get_engine() -> Engine:
     global _sync_engine
     if _sync_engine is None:
         settings = get_settings()
-        # Convert async URL to sync (sqlite+aiosqlite -> sqlite)
+        # Convert async URL to sync if needed (sqlite+aiosqlite -> sqlite)
         sync_url = settings.database_url.replace("+aiosqlite", "")
         _sync_engine = create_engine(
             sync_url,
@@ -75,24 +59,22 @@ def get_session() -> Generator[Session, None, None]:
         session.close()
 
 
-async def create_tables() -> None:
+def create_tables() -> None:
     """Create all database tables."""
-    engine = _get_async_engine()
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    engine = get_engine()
+    Base.metadata.create_all(engine)
 
 
-async def drop_tables() -> None:
+def drop_tables() -> None:
     """Drop all database tables (use with caution!)."""
-    engine = _get_async_engine()
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+    engine = get_engine()
+    Base.metadata.drop_all(engine)
 
 
-async def init_db() -> None:
+def init_db() -> None:
     """Initialize the database with tables and seed data."""
     from resolute.db.seed_data import seed_exercises_and_songs
 
-    await create_tables()
+    create_tables()
     with get_session() as session:
         seed_exercises_and_songs(session)

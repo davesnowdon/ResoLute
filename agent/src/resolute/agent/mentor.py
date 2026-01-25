@@ -1,5 +1,6 @@
 """MentorAgent - LangGraph ReAct agent for guiding players."""
 
+import asyncio
 import logging
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -77,8 +78,37 @@ class MentorAgent:
 
         return config
 
-    async def achat(self, message: str, thread_id: str | None = None) -> str:
+    async def _achat(self, message: str, thread_id: str) -> str:
+        """Async implementation of chat."""
+        config = self._get_config(thread_id)
+
+        # Build messages with system prompt
+        messages = [
+            SystemMessage(content=self.system_prompt),
+            HumanMessage(content=message),
+        ]
+
+        # Invoke the agent (async)
+        logger.info(f"[{self.player_id}] Calling agent.ainvoke()...")
+        result = await self.agent.ainvoke(
+            {"messages": messages},
+            config=config,
+        )
+        logger.info(f"[{self.player_id}] agent.ainvoke() returned")
+
+        # Extract the response
+        if result and "messages" in result:
+            response_messages = result["messages"]
+            if response_messages:
+                return response_messages[-1].content
+
+        return "I seem to have lost my train of thought. Could you repeat that?"
+
+    def chat(self, message: str, thread_id: str | None = None) -> str:
         """Send a message to the agent and get a response.
+
+        This is a sync wrapper that runs the async agent in a new event loop.
+        Safe to call from a thread pool (e.g., asyncio.to_thread).
 
         Args:
             message: The user's message.
@@ -90,43 +120,12 @@ class MentorAgent:
         if thread_id is None:
             thread_id = self.player_id
 
-        config = self._get_config(thread_id)
-
-        # Build messages with system prompt
-        messages = [
-            SystemMessage(content=self.system_prompt),
-            HumanMessage(content=message),
-        ]
+        logger.info(f"[{self.player_id}] chat() called with message: {message[:50]}...")
 
         try:
-            # Invoke the agent
-            result = await self.agent.ainvoke(
-                {"messages": messages},
-                config=config,
-            )
-
-            # Extract the response
-            if result and "messages" in result:
-                response_messages = result["messages"]
-                if response_messages:
-                    return response_messages[-1].content
-
-            return "I seem to have lost my train of thought. Could you repeat that?"
+            # Run async agent in a new event loop (safe from thread pool)
+            return asyncio.run(self._achat(message, thread_id))
 
         except Exception as e:
-            logger.error(f"Error in agent chat: {e}")
+            logger.error(f"[{self.player_id}] Error in agent chat: {e}")
             return f"Apologies, adventurer. I encountered a mystical interference: {str(e)}"
-
-    def chat(self, message: str, thread_id: str | None = None) -> str:
-        """Synchronous version of chat.
-
-        Args:
-            message: The user's message.
-            thread_id: Optional thread ID for conversation persistence.
-
-        Returns:
-            The agent's response.
-        """
-        import asyncio
-
-        return asyncio.run(self.achat(message, thread_id))

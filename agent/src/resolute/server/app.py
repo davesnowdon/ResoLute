@@ -1,5 +1,6 @@
 """FastAPI application with WebSocket endpoint."""
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -91,8 +92,8 @@ async def lifespan(app: FastAPI):
     if not settings.has_google_api_key:
         logger.warning("GOOGLE_API_KEY not set - agent will fail to respond")
 
-    # Initialize database
-    await init_db()
+    # Initialize database (sync)
+    init_db()
     logger.info("Database initialized")
 
     yield
@@ -115,20 +116,23 @@ async def health_check():
     return {"status": "healthy", "service": "resolute"}
 
 
-async def handle_world_request(player_id: str) -> ServerMessage:
+def handle_world_request(player_id: str) -> ServerMessage:
     """Handle world state request, generating if needed."""
+    logger.info(f"[{player_id}] World request")
     with get_session() as session:
         state_manager = GameStateManager(session)
         world_result = state_manager.get_or_generate_world(player_id)
 
         if world_result.get("needs_generation"):
-            # Generate a new world (async AI call)
+            # Generate a new world (sync AI call)
+            logger.info(f"[{player_id}] Generating new world...")
             generator = get_world_generator()
             player = state_manager.get_player(player_id)
             player_name = player.name if player else f"Bard {player_id[:8]}"
 
             try:
-                world_data = await generator.generate_world(player_id, player_name)
+                world_data = generator.generate_world(player_id, player_name)
+                logger.info(f"[{player_id}] World generated: {world_data.get('name', 'unknown')}")
 
                 # Create the world in the database
                 world = state_manager.create_world(
@@ -261,14 +265,18 @@ def handle_inventory_request(player_id: str) -> ServerMessage:
         return inventory_update_message(inventory)
 
 
-async def handle_chat_with_context(player_id: str, message: str) -> ServerMessage:
+def handle_chat_with_context(player_id: str, message: str) -> ServerMessage:
     """Handle chat message with game context."""
+    logger.info(f"[{player_id}] Chat request: {message[:50]}...")
     agent = manager.get_agent(player_id)
     if not agent:
+        logger.error(f"[{player_id}] Agent not found")
         return error_message("Agent not found for this session")
 
-    # Tools create their own sessions to avoid greenlet issues with LangGraph
-    response_content = await agent.achat(message, thread_id=player_id)
+    # Sync chat - run in thread pool from WebSocket handler
+    logger.info(f"[{player_id}] Invoking agent...")
+    response_content = agent.chat(message, thread_id=player_id)
+    logger.info(f"[{player_id}] Agent response received: {response_content[:50]}...")
 
     return ServerMessage(
         type="response",
@@ -296,17 +304,19 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
         generating_msg = world_generating_message()
         await websocket.send_json(generating_msg.model_dump())
 
-        world_msg = await handle_world_request(player_id)
+        world_msg = await asyncio.to_thread(handle_world_request, player_id)
         await websocket.send_json(world_msg.model_dump())
 
     try:
         while True:
             # Receive message from client
             data = await websocket.receive_json()
+            logger.info(f"[{player_id}] Received message: {data.get('type', 'unknown')}")
 
             try:
                 msg = ClientMessage(**data)
             except ValidationError as e:
+                logger.error(f"[{player_id}] Invalid message format: {e}")
                 response = error_message(f"Invalid message format: {str(e)}")
                 await websocket.send_json(response.model_dump())
                 continue
@@ -315,7 +325,11 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
             response: ServerMessage
 
             if msg.type == "chat":
-                response = await handle_chat_with_context(player_id, msg.content)
+                logger.info(f"[{player_id}] Processing chat message...")
+                response = await asyncio.to_thread(
+                    handle_chat_with_context, player_id, msg.content
+                )
+                logger.info(f"[{player_id}] Chat response ready")
 
             elif msg.type == "status":
                 response = ServerMessage(
@@ -325,7 +339,7 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
                 )
 
             elif msg.type == "world":
-                response = await handle_world_request(player_id)
+                response = await asyncio.to_thread(handle_world_request, player_id)
 
             elif msg.type == "travel":
                 response = handle_travel_request(player_id, msg.content)
@@ -357,8 +371,8 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
 
             elif msg.type == "quest":
                 # Legacy quest handling - route through chat
-                response = await handle_chat_with_context(
-                    player_id, f"Quest action: {msg.content}"
+                response = await asyncio.to_thread(
+                    handle_chat_with_context, player_id, f"Quest action: {msg.content}"
                 )
 
             else:
