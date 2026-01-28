@@ -165,6 +165,7 @@ blend_point_3/node = SubResource("AnimationNodeAnimation_sweqy")
 blend_point_3/pos = Vector2(1, 0)
 min_space = Vector2(-1, -1.1)
 max_space = Vector2(1, 1.1)
+blend_mode = 1
 
 [sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_2hs0m"]
 animation = &"walk_down"
@@ -189,6 +190,7 @@ blend_point_3/node = SubResource("AnimationNodeAnimation_b26j0")
 blend_point_3/pos = Vector2(1, 0)
 min_space = Vector2(-1, -1.1)
 max_space = Vector2(1, 1.1)
+blend_mode = 1
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_n7ghd"]
 advance_mode = 2
