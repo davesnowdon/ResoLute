@@ -3,6 +3,7 @@ extends CharacterBody2D
 @export var move_speed: float = 100
 @export var starting_direction: Vector2 = Vector2(0, 0.5)
 
+@onready var sprite = $Sprite2D
 @onready var animation_tree = $AnimationTree
 @onready var state_machine = animation_tree.get("parameters/playback")
 
@@ -15,11 +16,13 @@ func _physics_process(_delta: float) -> void:
 		Input.get_action_strength("down") - Input.get_action_strength("up")
 	)
 	
+	# character sheet only includes right facing graphics
+	if input_direction.x != 0:
+		sprite.flip_h = input_direction.x < 0
+	
 	update_animaton_parameters(input_direction)
-
 	velocity = input_direction * move_speed
 	pick_new_state()
-
 	move_and_slide()
 
 func update_animaton_parameters(move_input : Vector2):
