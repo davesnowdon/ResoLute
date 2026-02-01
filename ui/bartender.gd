@@ -18,6 +18,7 @@ func _ready() -> void:
 	pick_new_state()
 
 func _physics_process(delta: float) -> void:
+	#print("Processing: ", name) 
 	velocity = move_direction.normalized() * move_speed
 	move_and_slide()
 
@@ -40,6 +41,7 @@ func pick_new_state() -> void:
 	else:
 		state_machine.travel("idle")
 		current_state = CHARACTER_STATE.IDLE
+		move_direction = Vector2.ZERO
 		timer.start(idle_time)
 
 func _on_timer_timeout() -> void:

@@ -13,6 +13,7 @@ func _ready() -> void:
 	update_animation_parameters(starting_direction)
 
 func _physics_process(_delta: float) -> void:
+	#print("Processing: ", name) 
 	var input_direction = Vector2(
 		Input.get_action_strength("right") - Input.get_action_strength("left"),
 		Input.get_action_strength("down") - Input.get_action_strength("up")
@@ -33,7 +34,7 @@ func update_animation_parameters(move_input : Vector2) -> void:
 		animation_tree.set("parameters/walk/blend_position", move_input)
 
 func pick_new_state() -> void:
-	var new_state: StringName = &"walk" if velocity != Vector2.ZERO else &"idle"
-	if new_state != current_state:
+	var new_state: StringName = &"walk" if not velocity.is_zero_approx() else &"idle"
+	if (new_state != current_state):
 		current_state = new_state
 		state_machine.travel(current_state)
