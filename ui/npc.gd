@@ -17,7 +17,7 @@ var current_state: CHARACTER_STATE = CHARACTER_STATE.IDLE
 func _ready() -> void:
 	pick_new_state()
 
-func _physics_process(delta: float) -> void:
+func _physics_process(_delta: float) -> void:
 	#print("Processing: ", name) 
 	velocity = move_direction.normalized() * move_speed
 	move_and_slide()

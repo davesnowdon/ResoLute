@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=4 uid="uid://d3jxkjufrpxl2"]
+[gd_scene load_steps=17 format=4 uid="uid://d3jxkjufrpxl2"]
 
 [ext_resource type="Texture2D" uid="uid://ecy57rbyqsvm" path="res://art/Cute_Fantasy/Houses_Interiors/Wood_Floor_Tiles.png" id="1_4xy5q"]
 [ext_resource type="PackedScene" uid="uid://cup38aw2xi1yf" path="res://table.tscn" id="2_mrq8r"]
@@ -7,6 +7,9 @@
 [ext_resource type="PackedScene" uid="uid://7y5xjwj3bebg" path="res://player.tscn" id="5_77jyt"]
 [ext_resource type="PackedScene" uid="uid://c2p6if1jess2g" path="res://tavern_bar.tscn" id="6_77jyt"]
 [ext_resource type="PackedScene" uid="uid://byyb7ccdm2ijk" path="res://bartender.tscn" id="7_tet0i"]
+[ext_resource type="PackedScene" uid="uid://bgwtoms0phiht" path="res://farmer.tscn" id="8_t01rp"]
+[ext_resource type="PackedScene" uid="uid://f5nu4dfo6qxy" path="res://lumberjack.tscn" id="9_8vh3i"]
+[ext_resource type="PackedScene" uid="uid://kjgttepwsaxu" path="res://miner.tscn" id="10_aet8r"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_k053i"]
 texture = ExtResource("1_4xy5q")
@@ -104,6 +107,7 @@ position = Vector2(18, 38)
 
 [node name="bartender" parent="." instance=ExtResource("7_tet0i")]
 position = Vector2(44, 11)
+walk_time = 1.0
 
 [node name="walls" type="StaticBody2D" parent="."]
 
@@ -119,3 +123,40 @@ shape = SubResource("WorldBoundaryShape2D_vj7q8")
 
 [node name="CollisionShape2D4" type="CollisionShape2D" parent="walls"]
 shape = SubResource("WorldBoundaryShape2D_8vh3i")
+
+[node name="farmer" parent="." instance=ExtResource("8_t01rp")]
+position = Vector2(169, 39)
+idle_time = 10.0
+walk_time = 0.5
+
+[node name="farmer2" parent="." instance=ExtResource("8_t01rp")]
+position = Vector2(247, 95)
+move_speed = 15.0
+idle_time = 15.0
+
+[node name="lumberjack" parent="." instance=ExtResource("9_8vh3i")]
+position = Vector2(96, 131)
+move_speed = 10.0
+idle_time = 20.0
+
+[node name="lumberjack2" parent="." instance=ExtResource("9_8vh3i")]
+position = Vector2(209, 127)
+move_speed = 10.0
+idle_time = 15.0
+
+[node name="farmer3" parent="." instance=ExtResource("8_t01rp")]
+position = Vector2(182, 147)
+move_speed = 10.0
+idle_time = 10.0
+
+[node name="miner" parent="." instance=ExtResource("10_aet8r")]
+position = Vector2(255, 54)
+move_speed = 15.0
+idle_time = 13.0
+walk_time = 1.0
+
+[node name="miner2" parent="." instance=ExtResource("10_aet8r")]
+position = Vector2(145, 67)
+move_speed = 13.0
+idle_time = 23.0
+walk_time = 1.0
