@@ -311,6 +311,48 @@ class MessageHandler:
 
             return inventory_update_message(result.unwrap())
 
+    def _get_game_state_context(self) -> str:
+        """Fetch current game state and format as context for the agent."""
+        with self.ctx.session() as session:
+            player_service = PlayerService(session)
+            quest_service = QuestService(session)
+
+            lines = ["## Current Game State"]
+
+            # Get current location
+            loc_result = player_service.get_current_location(self.player_id)
+            if loc_result.is_ok:
+                location_info = loc_result.unwrap()
+                loc = location_info.get("location", {})
+                lines.append(f"Current Location: {loc.get('name', 'Unknown')} ({loc.get('location_type', 'unknown')})")
+
+                # Uncollected segments at this location
+                uncollected = location_info.get("uncollected_segments", [])
+                if uncollected:
+                    segment_names = [s.get("name", f"ID:{s.get('id')}") for s in uncollected]
+                    lines.append(f"Available to collect here: {', '.join(segment_names)}")
+                else:
+                    lines.append("No segments available to collect at this location.")
+
+                # Available destinations
+                destinations = location_info.get("available_destinations", [])
+                if destinations:
+                    dest_names = [d.get("name", "Unknown") for d in destinations]
+                    lines.append(f"Can travel to: {', '.join(dest_names)}")
+
+            # Get inventory
+            inv_result = quest_service.get_inventory(self.player_id)
+            if inv_result.is_ok:
+                inventory = inv_result.unwrap()
+                collected = inventory.get("collected_segments", [])
+                total = inventory.get("total_segments", 4)
+                lines.append(f"Segments collected: {len(collected)}/{total}")
+                if collected:
+                    collected_names = [s.get("name", "Unknown") for s in collected]
+                    lines.append(f"Collected: {', '.join(collected_names)}")
+
+            return "\n".join(lines)
+
     def handle_chat(self, message: str) -> ServerMessage:
         """Handle chat message with game context."""
         logger.info(f"[{self.player_id}] Chat request: {message[:50]}...")
@@ -318,9 +360,13 @@ class MessageHandler:
             logger.error(f"[{self.player_id}] Agent not found")
             return error_message("Agent not found for this session")
 
+        # Fetch current game state and include in context
+        state_context = self._get_game_state_context()
+        enriched_message = f"{state_context}\n\n## Player Message\n{message}"
+
         # Sync chat - run in thread pool from WebSocket handler
         logger.info(f"[{self.player_id}] Invoking agent...")
-        response_content = self.agent.chat(message, thread_id=self.player_id)
+        response_content = self.agent.chat(enriched_message, thread_id=self.player_id)
         logger.info(f"[{self.player_id}] Agent response received: {response_content[:50]}...")
 
         return ServerMessage(
