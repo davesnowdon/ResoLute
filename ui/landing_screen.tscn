@@ -1,8 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://landing_screen"]
+[gd_scene load_steps=3 format=3 uid="uid://c2fkecyvb7p3j"]
 
-[ext_resource type="Texture2D" uid="uid://resolute_logo" path="res://resolute_logo.png" id="1_logo"]
-[ext_resource type="Script" path="res://landing_screen.gd" id="2_script"]
-[ext_resource type="Texture2D" uid="uid://ui_buttons" path="res://art/Cute_Fantasy_Full/UI/UI_Buttons.png" id="3_buttons"]
+[ext_resource type="Texture2D" uid="uid://gdyhfi4yt40c" path="res://resolute_logo.png" id="1_logo"]
+[ext_resource type="Script" uid="uid://ddn6l215053in" path="res://landing_screen.gd" id="2_script"]
 
 [node name="LandingScreen" type="Control"]
 layout_mode = 3
@@ -18,6 +17,8 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 color = Color(0.1, 0.12, 0.18, 1)
 
 [node name="CenterContainer" type="CenterContainer" parent="."]
@@ -25,6 +26,8 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer"]
 layout_mode = 2
@@ -32,11 +35,11 @@ theme_override_constants/separation = 20
 alignment = 1
 
 [node name="Logo" type="TextureRect" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(200, 200)
 layout_mode = 2
 texture = ExtResource("1_logo")
 expand_mode = 3
 stretch_mode = 5
-custom_minimum_size = Vector2(200, 200)
 
 [node name="Title" type="Label" parent="CenterContainer/VBoxContainer"]
 layout_mode = 2
@@ -46,20 +49,20 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Description" type="Label" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(400, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "Transform your New Year resolutions into an epic fantasy quest!
 Learn music through adventure in a D&D-inspired world."
 horizontal_alignment = 1
 autowrap_mode = 2
-custom_minimum_size = Vector2(400, 0)
 
 [node name="Spacer" type="Control" parent="CenterContainer/VBoxContainer"]
-layout_mode = 2
 custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
 
 [node name="EnterButton" type="Button" parent="CenterContainer/VBoxContainer"]
-layout_mode = 2
 custom_minimum_size = Vector2(150, 50)
+layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "Enter"
