@@ -160,3 +160,7 @@ position = Vector2(145, 67)
 move_speed = 13.0
 idle_time = 23.0
 walk_time = 1.0
+
+[node name="Camera2D" type="Camera2D" parent="."]
+anchor_mode = 0
+zoom = Vector2(4, 4)

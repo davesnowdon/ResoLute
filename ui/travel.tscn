@@ -367,3 +367,7 @@ position = Vector2(12, 90)
 [node name="OakTree" type="Sprite2D" parent="."]
 position = Vector2(229, 34)
 texture = ExtResource("6_pk548")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+anchor_mode = 0
+zoom = Vector2(4, 4)
