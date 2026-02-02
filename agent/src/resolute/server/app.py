@@ -142,7 +142,7 @@ async def websocket_endpoint_auth(websocket: WebSocket):
     )
     await websocket.send_json(connection_msg.model_dump())
 
-    player_id = None
+    player_id: str | None = None
     auth_handler = AuthHandler(ctx)
 
     try:
@@ -198,7 +198,10 @@ async def websocket_endpoint_auth(websocket: WebSocket):
                 continue
 
             # Route message to appropriate handler
+            logger.info(f"[{player_id}] Processing {data.type} message...")
             response = await handle_message(data, handler)
+            logger.info(f"[{player_id}] Responding with {response.type} message.")
+
             await websocket.send_json(response.model_dump())
 
     except WebSocketDisconnect:
@@ -208,82 +211,6 @@ async def websocket_endpoint_auth(websocket: WebSocket):
         logger.error(f"WebSocket error: {e}")
         if player_id:
             manager.disconnect(player_id)
-
-
-# Keep legacy endpoint for backwards compatibility with test client
-@app.websocket("/ws/{player_id}")
-async def websocket_endpoint_legacy(websocket: WebSocket, player_id: str):
-    """Legacy WebSocket endpoint for backwards compatibility.
-
-    Player ID is passed in URL path (no authentication).
-    """
-    ctx: AppContext = app.state.ctx
-
-    # Use the old connection flow
-    await websocket.accept()
-
-    # Initialize player directly (no auth)
-    with ctx.session() as session:
-        player_service = PlayerService(session)
-        world_service = WorldService(session)
-
-        player_result = player_service.get_or_create(player_id)
-        player = player_result.unwrap()
-
-        world_result = world_service.get_or_generate(player_id)
-        world_data = world_result.unwrap()
-
-        # Create agent
-        agent = MentorAgent(
-            player_id=player_id,
-            session_factory=ctx.session_factory,
-            timer=ctx.exercise_timer,
-            model=ctx.settings.model,
-            tracer=ctx.tracer,
-            player_name=player.name,
-        )
-        manager.agents[player_id] = agent
-        manager.active_connections[player_id] = websocket
-
-        needs_world = world_data.get("needs_generation", False)
-
-    # Send legacy connection confirmation
-    from resolute.server.messages import ServerMessage
-    connection_msg = ServerMessage(
-        type="connected",
-        content=f"Welcome, {player_id}! Your mentor awaits.",
-        data={"player_id": player_id, "world_ready": not needs_world},
-    )
-    await websocket.send_json(connection_msg.model_dump())
-
-    # Create message handler
-    handler = MessageHandler(player_id, ctx, manager.get_agent(player_id))
-
-    # If player needs a world, start generation
-    if needs_world:
-        generating_msg = world_generating_message()
-        await websocket.send_json(generating_msg.model_dump())
-
-        world_msg = await asyncio.to_thread(handler.handle_world)
-        await websocket.send_json(world_msg.model_dump())
-
-    try:
-        while True:
-            raw_message = await websocket.receive_text()
-            try:
-                data = ClientMessage.model_validate_json(raw_message)
-            except ValidationError as e:
-                await websocket.send_json(error_message(f"Invalid message: {e}").model_dump())
-                continue
-
-            response = await handle_message(data, handler)
-            await websocket.send_json(response.model_dump())
-
-    except WebSocketDisconnect:
-        manager.disconnect(player_id)
-    except Exception as e:
-        logger.error(f"WebSocket error: {e}")
-        manager.disconnect(player_id)
 
 
 async def handle_message(data: ClientMessage, handler: MessageHandler) -> ServerMessage:
