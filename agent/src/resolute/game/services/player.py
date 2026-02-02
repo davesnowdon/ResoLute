@@ -21,11 +21,11 @@ class PlayerService:
         self.world_repo = WorldRepository(session)
         self.progress_repo = ProgressRepository(session)
 
-    def get_or_create(self, player_id: str) -> Result[Player]:
+    def get_or_create(self, player_id: str, name: str | None = None) -> Result[Player]:
         """Get an existing player or create a new one."""
         player = self.player_repo.get_by_id(player_id)
         if player is None:
-            player = self.player_repo.create(player_id)
+            player = self.player_repo.create(player_id, name=name)
             logger.info(f"[{player_id}] New player created")
         return Result.ok(player)
 

@@ -34,9 +34,14 @@ def main():
     # Client command
     client_parser = subparsers.add_parser("client", help="Start the text client for testing")
     client_parser.add_argument(
-        "--player",
-        default="test-player",
-        help="Player name to use (default: test-player)",
+        "--username", "-u",
+        default="test",
+        help="Username for login (default: test)",
+    )
+    client_parser.add_argument(
+        "--password", "-p",
+        default="test",
+        help="Password for login (default: test)",
     )
     client_parser.add_argument(
         "--host",
@@ -71,7 +76,7 @@ def main():
 
         from resolute.client.text import run
 
-        run(args.player)
+        run(args.username, args.password)
 
     else:
         parser.print_help()
