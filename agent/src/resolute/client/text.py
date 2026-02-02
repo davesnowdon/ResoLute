@@ -115,12 +115,12 @@ def format_response(response_data: dict) -> str:
     if msg_type == "error":
         return f"[ERROR] {content}"
 
-    elif msg_type == "login_success":
+    elif msg_type == "auth_success":
         player = data.get("player", {})
-        return f"[LOGIN] Welcome {player.get("name", "player")}! Level {player.get("level", 1)}"
+        return f"[AUTH] Welcome {player.get("name", "player")}! Level {player.get("level", 1)}"
 
-    elif msg_type == "login_failed":
-        return f"[LOGIN FAILED] {content}"
+    elif msg_type == "auth_failed":
+        return f"[AUTH FAILED] {content}"
 
     elif msg_type == "world_state":
         lines = [f"[WORLD] {content}"]
@@ -191,12 +191,18 @@ def format_response(response_data: dict) -> str:
 
 
 async def authenticate(websocket, username: str, password: str) -> tuple[bool, str | None]:
-    """Send login message and handle response.
+    """Send authenticate message and handle response.
 
     Returns (success, player_id) tuple.
     """
-    login_msg = {
-        "type": "login",
+    # First, receive the server's welcome message
+    welcome = await websocket.recv()
+    welcome_data = json.loads(welcome)
+    print(f"Server: {welcome_data.get('message', 'Connected')}")
+
+    # Send authenticate message
+    auth_msg = {
+        "type": "authenticate",
         "content": "",
         "data": {
             "username": username,
@@ -204,20 +210,20 @@ async def authenticate(websocket, username: str, password: str) -> tuple[bool, s
         }
     }
 
-    await websocket.send(json.dumps(login_msg))
+    await websocket.send(json.dumps(auth_msg))
     response = await websocket.recv()
     response_data = json.loads(response)
 
     print(format_response(response_data))
 
-    if response_data.get("type") == "login_success":
-        player_id = response_data.get("data", {}).get("player", {}).get("id")
+    if response_data.get("type") == "auth_success":
+        player_id = response_data.get("data", {}).get("player_id")
         return True, player_id
     else:
         return False, None
 
 
-async def main(username: str = "testuser", password: str = "testpass"):
+async def main(username: str = "test", password: str = "test"):
     """Run the text client for testing.
 
     Args:
@@ -284,7 +290,7 @@ async def main(username: str = "testuser", password: str = "testpass"):
         print("\nDisconnected")
 
 
-def run(username: str = "testuser", password: str = "testpass"):
+def run(username: str = "test", password: str = "test"):
     """Run the text client synchronously.
 
     Args:
@@ -296,6 +302,6 @@ def run(username: str = "testuser", password: str = "testpass"):
 
 if __name__ == "__main__":
     # Parse command line args: username [password]
-    user = sys.argv[1] if len(sys.argv) > 1 else "testuser"
-    pwd = sys.argv[2] if len(sys.argv) > 2 else "testpass"
+    user = sys.argv[1] if len(sys.argv) > 1 else "test"
+    pwd = sys.argv[2] if len(sys.argv) > 2 else "test"
     run(user, pwd)

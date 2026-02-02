@@ -35,13 +35,13 @@ def main():
     client_parser = subparsers.add_parser("client", help="Start the text client for testing")
     client_parser.add_argument(
         "--username", "-u",
-        default="testuser",
-        help="Username for login (default: testuser)",
+        default="test",
+        help="Username for login (default: test)",
     )
     client_parser.add_argument(
         "--password", "-p",
-        default="testpass",
-        help="Password for login (default: testpass)",
+        default="test",
+        help="Password for login (default: test)",
     )
     client_parser.add_argument(
         "--host",
