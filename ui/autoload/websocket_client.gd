@@ -162,7 +162,7 @@ func is_authenticated() -> bool:
 	return state == State.AUTHENTICATED
 
 ## Check if connected (may not be authenticated yet)
-func is_connected() -> bool:
+func is_socket_connected() -> bool:
 	return state in [State.CONNECTED, State.AUTHENTICATING, State.AUTHENTICATED]
 
 # Internal: Send JSON message

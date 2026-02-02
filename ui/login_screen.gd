@@ -87,7 +87,7 @@ func _on_start_quest_pressed() -> void:
 	_set_ui_enabled(false)
 
 	# Check if already connected
-	if WebSocket.is_connected():
+	if WebSocket.is_socket_connected():
 		# Already connected, just authenticate
 		print("[Login] Already connected, authenticating...")
 		WebSocket.authenticate(username, password)
@@ -102,7 +102,7 @@ func _on_start_quest_pressed() -> void:
 
 func _on_back_pressed() -> void:
 	# Disconnect if connected
-	if WebSocket.is_connected():
+	if WebSocket.is_socket_connected():
 		WebSocket.disconnect_from_server()
 
 	# Return to landing screen
