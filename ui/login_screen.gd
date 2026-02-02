@@ -49,7 +49,7 @@ func _on_start_quest_pressed() -> void:
 	print("Login attempt - Username: ", username)
 	
 	# For now, transition to the opening screen / main game
-	get_tree().change_scene_to_file("res://opening_screen.tscn")
+	get_tree().change_scene_to_file("res://location_screen.tscn")
 
 func _on_back_pressed() -> void:
 	# Return to landing screen
