@@ -27,7 +27,7 @@ Or just type a message to chat with your mentor!
 """
 
 
-def parse_command(user_input: str, player_name: str) -> dict | None:
+def parse_command(user_input: str, player_id: str) -> dict | None:
     """Parse user input into a message dict.
 
     Returns None for quit commands.
@@ -47,12 +47,12 @@ def parse_command(user_input: str, player_name: str) -> dict | None:
             return {"_skip": True}
 
         elif cmd == "world":
-            return {"type": "world", "player_id": player_name, "content": ""}
+            return {"type": "world", "player_id": player_id, "content": ""}
 
         elif cmd in ("location", "loc", "where"):
             return {
                 "type": "chat",
-                "player_id": player_name,
+                "player_id": player_id,
                 "content": "Where am I? What can I do here?",
             }
 
@@ -60,13 +60,13 @@ def parse_command(user_input: str, player_name: str) -> dict | None:
             if not arg:
                 print("Usage: /travel <destination name>")
                 return {"_skip": True}
-            return {"type": "travel", "player_id": player_name, "content": arg}
+            return {"type": "travel", "player_id": player_id, "content": arg}
 
         elif cmd in ("exercise", "ex", "status"):
-            return {"type": "exercise", "player_id": player_name, "content": "check"}
+            return {"type": "exercise", "player_id": player_id, "content": "check"}
 
         elif cmd in ("complete", "done", "finish"):
-            return {"type": "exercise", "player_id": player_name, "content": "complete"}
+            return {"type": "exercise", "player_id": player_id, "content": "complete"}
 
         elif cmd == "collect":
             if not arg:
@@ -76,7 +76,7 @@ def parse_command(user_input: str, player_name: str) -> dict | None:
                 segment_id = int(arg)
                 return {
                     "type": "collect",
-                    "player_id": player_name,
+                    "player_id": player_id,
                     "content": "",
                     "data": {"segment_id": segment_id},
                 }
@@ -85,16 +85,16 @@ def parse_command(user_input: str, player_name: str) -> dict | None:
                 return {"_skip": True}
 
         elif cmd in ("inventory", "inv", "segments"):
-            return {"type": "inventory", "player_id": player_name, "content": ""}
+            return {"type": "inventory", "player_id": player_id, "content": ""}
 
         elif cmd == "perform":
-            return {"type": "perform", "player_id": player_name, "content": ""}
+            return {"type": "perform", "player_id": player_id, "content": ""}
 
         elif cmd in ("quest", "ready"):
-            return {"type": "final_quest", "player_id": player_name, "content": "check"}
+            return {"type": "final_quest", "player_id": player_id, "content": "check"}
 
         elif cmd == "final":
-            return {"type": "final_quest", "player_id": player_name, "content": "attempt"}
+            return {"type": "final_quest", "player_id": player_id, "content": "attempt"}
 
         else:
             print(f"Unknown command: /{cmd}")
@@ -103,7 +103,7 @@ def parse_command(user_input: str, player_name: str) -> dict | None:
 
     else:
         # Regular chat message
-        return {"type": "chat", "player_id": player_name, "content": text}
+        return {"type": "chat", "player_id": player_id, "content": text}
 
 
 def format_response(response_data: dict) -> str:
@@ -115,20 +115,27 @@ def format_response(response_data: dict) -> str:
     if msg_type == "error":
         return f"[ERROR] {content}"
 
+    elif msg_type == "login_success":
+        player = data.get("player", {})
+        return f"[LOGIN] Welcome {player.get("name", "player")}! Level {player.get("level", 1)}"
+
+    elif msg_type == "login_failed":
+        return f"[LOGIN FAILED] {content}"
+
     elif msg_type == "world_state":
         lines = [f"[WORLD] {content}"]
         if "locations" in data:
             lines.append("Locations:")
             for loc in data["locations"]:
                 status = "unlocked" if loc.get("is_unlocked") else "locked"
-                lines.append(f"  - {loc['name']} ({loc['type']}) [{status}]")
+                lines.append(f"  - {loc["name"]} ({loc["type"]}) [{status}]")
                 if loc.get("segments"):
                     for seg in loc["segments"]:
-                        lines.append(f"      Segment: {seg['name']} (ID: {seg['id']})")
+                        lines.append(f"      Segment: {seg["name"]} (ID: {seg["id"]})")
         if data.get("final_monster"):
-            lines.append(f"Final Boss: {data['final_monster']}")
+            lines.append(f"Final Boss: {data["final_monster"]}")
         if data.get("rescue_target"):
-            lines.append(f"Rescue: {data['rescue_target']}")
+            lines.append(f"Rescue: {data["rescue_target"]}")
         return "\n".join(lines)
 
     elif msg_type == "world_generating":
@@ -136,11 +143,11 @@ def format_response(response_data: dict) -> str:
 
     elif msg_type == "exercise_state":
         if data.get("is_complete"):
-            return f"[EXERCISE] {data.get('exercise_name', 'Exercise')} COMPLETE! Type /complete to finish."
+            return f"[EXERCISE] {data.get("exercise_name", "Exercise")} COMPLETE! Type /complete to finish."
         else:
             remaining = data.get("remaining_seconds", 0)
             progress = data.get("progress_percent", 0)
-            return f"[EXERCISE] {data.get('exercise_name', 'Exercise')} - {progress:.0f}% ({remaining:.0f}s left)"
+            return f"[EXERCISE] {data.get("exercise_name", "Exercise")} - {progress:.0f}% ({remaining:.0f}s left)"
 
     elif msg_type == "exercise_complete":
         rewards = data.get("rewards", {})
@@ -151,19 +158,19 @@ def format_response(response_data: dict) -> str:
 
     elif msg_type == "segment_collected":
         segment = data.get("segment", {})
-        return f"[COLLECTED] {segment.get('name', 'Segment')} - {segment.get('description', '')}"
+        return f"[COLLECTED] {segment.get("name", "Segment")} - {segment.get("description", "")}"
 
     elif msg_type == "inventory_update":
         lines = [f"[INVENTORY] {content}"]
         for seg in data.get("collected_segments", []):
-            lines.append(f"  - {seg['name']}")
+            lines.append(f"  - {seg["name"]}")
         if data.get("can_perform_final"):
             lines.append("You have all segments! You can attempt the final quest with /final")
         return "\n".join(lines)
 
     elif msg_type == "performance_result":
         rewards = data.get("rewards", {})
-        return f"[PERFORMANCE] {content} (Score: {rewards.get('performance_score', 0)}%)"
+        return f"[PERFORMANCE] {content} (Score: {rewards.get("performance_score", 0)}%)"
 
     elif msg_type == "game_complete":
         if data.get("victory"):
@@ -172,45 +179,69 @@ def format_response(response_data: dict) -> str:
             return f"[DEFEAT] {content}"
 
     elif msg_type == "location_update":
-        return f"[LOCATION] {content}"
+        loc = data.get("location", {})
+        lines = [f"[LOCATION] {content}"]
+        if loc:
+            lines.append(f"  Name: {loc.get("name", "Unknown")}")
+            lines.append(f"  Type: {loc.get("type", "unknown")}")
+        return "\n".join(lines)
 
     else:
         return f"[{msg_type.upper()}] {content}"
 
 
-async def main(player_name: str = "test-player"):
+async def authenticate(websocket, username: str, password: str) -> tuple[bool, str | None]:
+    """Send login message and handle response.
+
+    Returns (success, player_id) tuple.
+    """
+    login_msg = {
+        "type": "login",
+        "content": "",
+        "data": {
+            "username": username,
+            "password": password
+        }
+    }
+
+    await websocket.send(json.dumps(login_msg))
+    response = await websocket.recv()
+    response_data = json.loads(response)
+
+    print(format_response(response_data))
+
+    if response_data.get("type") == "login_success":
+        player_id = response_data.get("data", {}).get("player", {}).get("id")
+        return True, player_id
+    else:
+        return False, None
+
+
+async def main(username: str = "testuser", password: str = "testpass"):
     """Run the text client for testing.
 
     Args:
-        player_name: The player name to use for the connection.
+        username: The username for login.
+        password: The password for login.
     """
     settings = get_settings()
-    uri = f"ws://{settings.host}:{settings.port}/ws/{player_name}"
+    uri = f"ws://{settings.host}:{settings.port}/ws"
 
     print(f"Connecting to {uri}...")
-    print("Type /help for commands, or just chat with your mentor!")
     print("-" * 60)
 
     try:
         async with websockets.connect(uri) as websocket:
-            # Receive connection message
-            connection_msg = await websocket.recv()
-            connection_data = json.loads(connection_msg)
-            print(f"Server: {connection_data.get('message', 'Connected')}")
+            # Authenticate first
+            print(f"Logging in as {username}...")
+            success, player_id = await authenticate(websocket, username, password)
 
-            # Check if world needs generation
-            if not connection_data.get("world_ready", True):
-                print("Generating your world...")
-                # Receive world_generating message
-                msg = await websocket.recv()
-                data = json.loads(msg)
-                print(format_response(data))
+            if not success:
+                print("Authentication failed. Disconnecting.")
+                return
 
-                # Receive world_state message
-                msg = await websocket.recv()
-                data = json.loads(msg)
-                print(format_response(data))
-
+            print(f"Authenticated! Player ID: {player_id}")
+            print("Type /help for commands, or just chat with your mentor!")
             print("-" * 60)
 
             while True:
@@ -224,7 +255,7 @@ async def main(player_name: str = "test-player"):
                     continue
 
                 # Parse command
-                message = parse_command(user_input, player_name)
+                message = parse_command(user_input, player_id)
 
                 if message is None:
                     print("Disconnecting...")
@@ -253,15 +284,18 @@ async def main(player_name: str = "test-player"):
         print("\nDisconnected")
 
 
-def run(player_name: str = "test-player"):
+def run(username: str = "testuser", password: str = "testpass"):
     """Run the text client synchronously.
 
     Args:
-        player_name: The player name to use for the connection.
+        username: The username for login.
+        password: The password for login.
     """
-    asyncio.run(main(player_name))
+    asyncio.run(main(username, password))
 
 
 if __name__ == "__main__":
-    player = sys.argv[1] if len(sys.argv) > 1 else "test-player"
-    run(player)
+    # Parse command line args: username [password]
+    user = sys.argv[1] if len(sys.argv) > 1 else "testuser"
+    pwd = sys.argv[2] if len(sys.argv) > 2 else "testpass"
+    run(user, pwd)

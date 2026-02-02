@@ -6,25 +6,33 @@ from pydantic import BaseModel, Field  # noqa: I001
 
 # Client message types
 ClientMessageType = Literal[
+    "authenticate",  # Login with username/password
     "chat",  # Chat with the mentor
     "status",  # Get connection status
     "quest",  # Quest-related actions (legacy)
     "world",  # Request world state
+    "location",  # Get current location info
     "travel",  # Start travel to location
     "exercise",  # Exercise actions (start/check/complete)
     "collect",  # Collect song segment
     "perform",  # Tavern performance
     "final_quest",  # Final quest actions
     "inventory",  # Get inventory
+    "player",  # Get player stats
 ]
 
 # Server message types
 ServerMessageType = Literal[
+    "connected",  # Initial connection (pre-auth)
+    "auth_success",  # Authentication successful
+    "auth_failed",  # Authentication failed
     "response",  # General response
     "error",  # Error message
     "status",  # Status update
     "world_state",  # Full world sync
     "world_generating",  # World being generated
+    "location_state",  # Current location info
+    "player_state",  # Player stats and info
     "exercise_state",  # Timer status
     "exercise_complete",  # Exercise completed with rewards
     "segment_collected",  # Segment collection confirmed
@@ -39,7 +47,6 @@ class ClientMessage(BaseModel):
     """Message sent from client to server."""
 
     type: ClientMessageType = Field(description="Type of message")
-    player_id: str = Field(description="Unique identifier for the player")
     content: str = Field(default="", description="Message content or action parameter")
     data: dict[str, Any] = Field(default_factory=dict, description="Additional structured data")
 
@@ -54,15 +61,34 @@ class ServerMessage(BaseModel):
 
 
 class ConnectionMessage(BaseModel):
-    """Message sent when a player connects or disconnects."""
+    """Message sent when a player connects (before auth)."""
 
-    type: Literal["connected", "disconnected"] = Field(description="Connection event type")
-    player_id: str = Field(description="Player who connected/disconnected")
+    type: Literal["connected"] = Field(default="connected", description="Connection event type")
     message: str = Field(description="Connection message")
-    world_ready: bool = Field(default=False, description="Whether player has a world")
 
 
 # Helper functions to create common server messages
+
+
+def auth_success_message(player_id: str, player_data: dict) -> ServerMessage:
+    """Create an authentication success message."""
+    return ServerMessage(
+        type="auth_success",
+        content=f"Welcome, {player_data.get('name', player_id)}! Your mentor awaits.",
+        data={
+            "player_id": player_id,
+            "player": player_data,
+        },
+    )
+
+
+def auth_failed_message(reason: str = "Invalid credentials") -> ServerMessage:
+    """Create an authentication failure message."""
+    return ServerMessage(
+        type="auth_failed",
+        content=reason,
+        data={"error": reason},
+    )
 
 
 def world_state_message(world_data: dict) -> ServerMessage:
@@ -80,6 +106,25 @@ def world_generating_message() -> ServerMessage:
         type="world_generating",
         content="A new realm is being woven just for you...",
         data={"status": "generating"},
+    )
+
+
+def location_state_message(location_data: dict) -> ServerMessage:
+    """Create a location state response with full details."""
+    loc = location_data.get("location", {})
+    return ServerMessage(
+        type="location_state",
+        content=f"You are at {loc.get('name', 'an unknown location')}",
+        data=location_data,
+    )
+
+
+def player_state_message(player_data: dict) -> ServerMessage:
+    """Create a player state response."""
+    return ServerMessage(
+        type="player_state",
+        content=f"Stats for {player_data.get('name', 'Unknown')}",
+        data=player_data,
     )
 
 
