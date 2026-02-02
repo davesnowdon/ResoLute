@@ -13,7 +13,7 @@ from resolute.context import AppContext, create_context
 from resolute.db.seed_data import seed_exercises_and_songs
 from resolute.db.session import create_tables
 from resolute.game.services import PlayerService, WorldService
-from resolute.server.handlers import MessageHandler
+from resolute.server.handlers import AuthHandler, MessageHandler
 from resolute.server.messages import (
     ClientMessage,
     ConnectionMessage,
@@ -33,14 +33,13 @@ class ConnectionManager:
         self.active_connections: dict[str, WebSocket] = {}
         self.agents: dict[str, MentorAgent] = {}
 
-    async def connect(
+    async def connect_authenticated(
         self, websocket: WebSocket, player_id: str, ctx: AppContext
     ) -> bool:
-        """Accept a new connection and initialize player resources.
+        """Initialize player resources after authentication.
 
         Returns True if this is a new player (needs world generation).
         """
-        await websocket.accept()
         self.active_connections[player_id] = websocket
 
         # Check if player has a world
@@ -67,7 +66,7 @@ class ConnectionManager:
 
             needs_world = world_data.get("needs_generation", False)
 
-        logger.info(f"Player connected: {player_id} (needs_world={needs_world})")
+        logger.info(f"Player session initialized: {player_id} (needs_world={needs_world})")
         return needs_world
 
     def disconnect(self, player_id: str):
@@ -122,103 +121,141 @@ async def health_check():
     return {"status": "healthy", "service": "resolute"}
 
 
-@app.websocket("/ws/{player_id}")
-async def websocket_endpoint(websocket: WebSocket, player_id: str):
-    """WebSocket endpoint for player communication."""
-    ctx: AppContext = app.state.ctx
-    needs_world = await manager.connect(websocket, player_id, ctx)
+@app.websocket("/ws")
+async def websocket_endpoint_auth(websocket: WebSocket):
+    """WebSocket endpoint with authentication required.
 
-    # Send connection confirmation
+    Flow:
+    1. Client connects
+    2. Server sends 'connected' message
+    3. Client sends 'authenticate' message with credentials
+    4. Server validates and sends 'auth_success' or 'auth_failed'
+    5. If authenticated, normal message handling begins
+    """
+    ctx: AppContext = app.state.ctx
+    await websocket.accept()
+
+    # Send connection confirmation (pre-auth)
     connection_msg = ConnectionMessage(
         type="connected",
-        player_id=player_id,
-        message=f"Welcome, {player_id}! Your mentor awaits.",
-        world_ready=not needs_world,
+        message="Connected to ResoLute. Please authenticate.",
     )
     await websocket.send_json(connection_msg.model_dump())
 
-    # Create message handler for this player
-    handler = MessageHandler(player_id, ctx, manager.get_agent(player_id))
-
-    # If player needs a world, start generation
-    if needs_world:
-        generating_msg = world_generating_message()
-        await websocket.send_json(generating_msg.model_dump())
-
-        world_msg = await asyncio.to_thread(handler.handle_world)
-        await websocket.send_json(world_msg.model_dump())
+    player_id: str | None = None
+    auth_handler = AuthHandler(ctx)
 
     try:
-        while True:
-            # Receive message from client
-            data = await websocket.receive_json()
-            logger.info(f"[{player_id}] Received message: {data.get('type', 'unknown')}")
-
+        # Wait for authentication
+        while player_id is None:
+            raw_message = await websocket.receive_text()
             try:
-                msg = ClientMessage(**data)
+                data = ClientMessage.model_validate_json(raw_message)
             except ValidationError as e:
-                logger.error(f"[{player_id}] Invalid message format: {e}")
-                response = error_message(f"Invalid message format: {str(e)}")
-                await websocket.send_json(response.model_dump())
+                await websocket.send_json(error_message(f"Invalid message format: {e}").model_dump())
+                continue
+
+            if data.type != "authenticate":
+                await websocket.send_json(
+                    error_message("Please authenticate first. Send type='authenticate' with username and password.").model_dump()
+                )
+                continue
+
+            # Process authentication
+            username = data.data.get("username", "")
+            password = data.data.get("password", "")
+
+            success, auth_msg, authenticated_player_id = auth_handler.authenticate(username, password)
+            await websocket.send_json(auth_msg.model_dump())
+
+            if success:
+                player_id = authenticated_player_id
+                logger.info(f"Player authenticated: {player_id}")
+            else:
+                logger.warning(f"Authentication failed for: {username}")
+
+        # Initialize player session
+        needs_world = await manager.connect_authenticated(websocket, player_id, ctx)
+
+        # Create message handler for this player
+        handler = MessageHandler(player_id, ctx, manager.get_agent(player_id))
+
+        # If player needs a world, start generation
+        if needs_world:
+            generating_msg = world_generating_message()
+            await websocket.send_json(generating_msg.model_dump())
+
+            world_msg = await asyncio.to_thread(handler.handle_world)
+            await websocket.send_json(world_msg.model_dump())
+
+        # Main message loop
+        while True:
+            raw_message = await websocket.receive_text()
+            try:
+                data = ClientMessage.model_validate_json(raw_message)
+            except ValidationError as e:
+                await websocket.send_json(error_message(f"Invalid message: {e}").model_dump())
                 continue
 
             # Route message to appropriate handler
-            response: ServerMessage
-
-            if msg.type == "chat":
-                logger.info(f"[{player_id}] Processing chat message...")
-                response = await asyncio.to_thread(handler.handle_chat, msg.content)
-                logger.info(f"[{player_id}] Chat response ready")
-
-            elif msg.type == "status":
-                response = ServerMessage(
-                    type="status",
-                    content="Connected and ready",
-                    data={"player_id": player_id, "connected": True},
-                )
-
-            elif msg.type == "world":
-                response = await asyncio.to_thread(handler.handle_world)
-
-            elif msg.type == "travel":
-                response = handler.handle_travel(msg.content)
-
-            elif msg.type == "exercise":
-                action = msg.content or msg.data.get("action", "check")
-                response = handler.handle_exercise(action)
-
-            elif msg.type == "collect":
-                segment_id = msg.data.get("segment_id")
-                if segment_id is None:
-                    try:
-                        segment_id = int(msg.content)
-                    except (ValueError, TypeError):
-                        response = error_message("segment_id required")
-                        await websocket.send_json(response.model_dump())
-                        continue
-                response = handler.handle_collect(segment_id)
-
-            elif msg.type == "perform":
-                response = handler.handle_perform()
-
-            elif msg.type == "final_quest":
-                action = msg.content or msg.data.get("action", "check")
-                response = handler.handle_final_quest(action)
-
-            elif msg.type == "inventory":
-                response = handler.handle_inventory()
-
-            elif msg.type == "quest":
-                # Legacy quest handling - route through chat
-                response = await asyncio.to_thread(
-                    handler.handle_chat, f"Quest action: {msg.content}"
-                )
-
-            else:
-                response = error_message(f"Unknown message type: {msg.type}")
+            logger.info(f"[{player_id}] Processing {data.type} message...")
+            response = await handle_message(data, handler)
+            logger.info(f"[{player_id}] Responding with {response.type} message.")
 
             await websocket.send_json(response.model_dump())
 
     except WebSocketDisconnect:
-        manager.disconnect(player_id)
-        logger.info(f"Player {player_id} disconnected")
+        if player_id:
+            manager.disconnect(player_id)
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        if player_id:
+            manager.disconnect(player_id)
+
+
+async def handle_message(data: ClientMessage, handler: MessageHandler) -> ServerMessage:
+    """Route a message to the appropriate handler."""
+    msg_type = data.type
+
+    if msg_type == "chat":
+        return await asyncio.to_thread(handler.handle_chat, data.content)
+
+    elif msg_type == "world":
+        return await asyncio.to_thread(handler.handle_world)
+
+    elif msg_type == "location":
+        return await asyncio.to_thread(handler.handle_location)
+
+    elif msg_type == "player":
+        return await asyncio.to_thread(handler.handle_player)
+
+    elif msg_type == "travel":
+        return await asyncio.to_thread(handler.handle_travel, data.content)
+
+    elif msg_type == "exercise":
+        return await asyncio.to_thread(handler.handle_exercise, data.content)
+
+    elif msg_type == "collect":
+        segment_id = data.data.get("segment_id")
+        if segment_id is None:
+            return error_message("segment_id required in data")
+        return await asyncio.to_thread(handler.handle_collect, segment_id)
+
+    elif msg_type == "inventory":
+        return await asyncio.to_thread(handler.handle_inventory)
+
+    elif msg_type == "perform":
+        return await asyncio.to_thread(handler.handle_perform)
+
+    elif msg_type == "final_quest":
+        return await asyncio.to_thread(handler.handle_final_quest, data.content)
+
+    elif msg_type == "status":
+        return ServerMessage(
+            type="status",
+            content="Connected and authenticated",
+            data={"status": "ok"},
+        )
+
+    else:
+        return error_message(f"Unknown message type: {msg_type}")

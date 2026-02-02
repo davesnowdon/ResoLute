@@ -47,7 +47,7 @@ features = ["dev"]
 
 [tool.hatch.envs.default.scripts]
 server = "uvicorn resolute.server.app:app --host 0.0.0.0 --port 8000 --reload"
-client = "python -m resolute client"
+client = "python -m resolute client {args}"
 test = "pytest {args}"
 lint = "ruff check src tests"
 format = "ruff format src tests"
