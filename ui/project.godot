@@ -15,6 +15,10 @@ run/main_scene="uid://chcalusd6kr07"
 config/features=PackedStringArray("4.5", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[autoload]
+
+WebSocket="*res://autoload/websocket_client.gd"
+
 [display]
 
 window/stretch/mode="canvas_items"
