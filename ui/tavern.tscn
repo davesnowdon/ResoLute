@@ -1,0 +1,166 @@
+[gd_scene load_steps=17 format=4 uid="uid://d3jxkjufrpxl2"]
+
+[ext_resource type="Texture2D" uid="uid://ecy57rbyqsvm" path="res://art/Cute_Fantasy/Houses_Interiors/Wood_Floor_Tiles.png" id="1_4xy5q"]
+[ext_resource type="PackedScene" uid="uid://cup38aw2xi1yf" path="res://table.tscn" id="2_mrq8r"]
+[ext_resource type="PackedScene" uid="uid://b2s6fvqdmkml3" path="res://round-table.tscn" id="3_2x3md"]
+[ext_resource type="PackedScene" uid="uid://ds70m15fhke0h" path="res://stage.tscn" id="4_6pmnl"]
+[ext_resource type="PackedScene" uid="uid://7y5xjwj3bebg" path="res://player.tscn" id="5_77jyt"]
+[ext_resource type="PackedScene" uid="uid://c2p6if1jess2g" path="res://tavern_bar.tscn" id="6_77jyt"]
+[ext_resource type="PackedScene" uid="uid://byyb7ccdm2ijk" path="res://bartender.tscn" id="7_tet0i"]
+[ext_resource type="PackedScene" uid="uid://bgwtoms0phiht" path="res://farmer.tscn" id="8_t01rp"]
+[ext_resource type="PackedScene" uid="uid://f5nu4dfo6qxy" path="res://lumberjack.tscn" id="9_8vh3i"]
+[ext_resource type="PackedScene" uid="uid://kjgttepwsaxu" path="res://miner.tscn" id="10_aet8r"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_k053i"]
+texture = ExtResource("1_4xy5q")
+0:0/0 = 0
+1:0/0 = 0
+2:0/0 = 0
+3:0/0 = 0
+4:0/0 = 0
+5:0/0 = 0
+6:0/0 = 0
+7:0/0 = 0
+0:1/0 = 0
+1:1/0 = 0
+2:1/0 = 0
+3:1/0 = 0
+4:1/0 = 0
+5:1/0 = 0
+6:1/0 = 0
+7:1/0 = 0
+0:2/0 = 0
+1:2/0 = 0
+2:2/0 = 0
+3:2/0 = 0
+4:2/0 = 0
+5:2/0 = 0
+6:2/0 = 0
+7:2/0 = 0
+0:3/0 = 0
+1:3/0 = 0
+2:3/0 = 0
+3:3/0 = 0
+4:3/0 = 0
+5:3/0 = 0
+6:3/0 = 0
+7:3/0 = 0
+0:4/0 = 0
+1:4/0 = 0
+2:4/0 = 0
+3:4/0 = 0
+4:4/0 = 0
+5:4/0 = 0
+0:5/0 = 0
+1:5/0 = 0
+2:5/0 = 0
+3:5/0 = 0
+4:5/0 = 0
+5:5/0 = 0
+
+[sub_resource type="TileSet" id="TileSet_mrq8r"]
+sources/0 = SubResource("TileSetAtlasSource_k053i")
+
+[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_tet0i"]
+normal = Vector2(0, 1)
+distance = 6.0
+
+[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_t01rp"]
+
+[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_vj7q8"]
+normal = Vector2(1, 0)
+
+[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_8vh3i"]
+normal = Vector2(-1, 0)
+distance = -289.0
+
+[node name="tavern" type="Node2D"]
+
+[node name="floor" type="TileMapLayer" parent="."]
+z_index = -5
+tile_map_data = PackedByteArray("AAAAAAAAAAAAAAAAAAAAAAEAAAAAAAEAAAABAAAAAAABAAAAAAABAAEAAAABAAEAAAACAAAAAAAAAAAAAAACAAEAAAAAAAEAAAADAAAAAAABAAAAAAADAAEAAAABAAEAAAAEAAAAAAAAAAAAAAAEAAEAAAAAAAEAAAAFAAAAAAABAAAAAAAFAAEAAAABAAEAAAAGAAAAAAAAAAAAAAAGAAEAAAAAAAEAAAAHAAAAAAABAAAAAAAHAAEAAAABAAEAAAAIAAAAAAAAAAAAAAAIAAEAAAAAAAEAAAAJAAAAAAABAAAAAAAJAAEAAAABAAEAAAAKAAAAAAAAAAAAAAAKAAEAAAAAAAEAAAALAAAAAAABAAAAAAALAAEAAAABAAEAAAAMAAAAAAAAAAAAAAAMAAEAAAAAAAEAAAANAAAAAAABAAAAAAANAAEAAAABAAEAAAAOAAAAAAAAAAAAAAAOAAEAAAAAAAEAAAAPAAAAAAABAAAAAAAPAAEAAAABAAEAAAAAAAIAAAAAAAAAAAAAAAMAAAAAAAEAAAABAAIAAAABAAAAAAABAAMAAAABAAEAAAAAAAQAAAAAAAAAAAAAAAUAAAAAAAEAAAABAAQAAAABAAAAAAABAAUAAAABAAEAAAAAAAYAAAAAAAAAAAAAAAcAAAAAAAEAAAABAAYAAAABAAAAAAABAAcAAAABAAEAAAAAAAgAAAAAAAAAAAAAAAkAAAAAAAEAAAABAAgAAAABAAAAAAABAAkAAAABAAEAAAACAAIAAAAAAAAAAAACAAMAAAAAAAEAAAADAAIAAAABAAAAAAADAAMAAAABAAEAAAAEAAIAAAAAAAAAAAAEAAMAAAAAAAEAAAAFAAIAAAABAAAAAAAFAAMAAAABAAEAAAAEAAQAAAAAAAAAAAAEAAUAAAAAAAEAAAAFAAQAAAABAAAAAAAFAAUAAAABAAEAAAAGAAQAAAAAAAAAAAAGAAUAAAAAAAEAAAAHAAQAAAABAAAAAAAHAAUAAAABAAEAAAAIAAQAAAAAAAAAAAAIAAUAAAAAAAEAAAAJAAQAAAABAAAAAAAJAAUAAAABAAEAAAAIAAYAAAAAAAAAAAAIAAcAAAAAAAEAAAAJAAYAAAABAAAAAAAJAAcAAAABAAEAAAAKAAYAAAAAAAAAAAAKAAcAAAAAAAEAAAALAAYAAAABAAAAAAALAAcAAAABAAEAAAAMAAYAAAAAAAAAAAAMAAcAAAAAAAEAAAANAAYAAAABAAAAAAANAAcAAAABAAEAAAAMAAgAAAAAAAAAAAAMAAkAAAAAAAEAAAANAAgAAAABAAAAAAANAAkAAAABAAEAAAAOAAgAAAAAAAAAAAAOAAkAAAAAAAEAAAAPAAgAAAABAAAAAAAPAAkAAAABAAEAAAAOAAYAAAAAAAAAAAAOAAcAAAAAAAEAAAAPAAYAAAABAAAAAAAPAAcAAAABAAEAAAAOAAQAAAAAAAAAAAAOAAUAAAAAAAEAAAAPAAQAAAABAAAAAAAPAAUAAAABAAEAAAAOAAIAAAAAAAAAAAAOAAMAAAAAAAEAAAAPAAIAAAABAAAAAAAPAAMAAAABAAEAAAAMAAIAAAAAAAAAAAAMAAMAAAAAAAEAAAANAAIAAAABAAAAAAANAAMAAAABAAEAAAAKAAIAAAAAAAAAAAAKAAMAAAAAAAEAAAALAAIAAAABAAAAAAALAAMAAAABAAEAAAAIAAIAAAAAAAAAAAAIAAMAAAAAAAEAAAAJAAIAAAABAAAAAAAJAAMAAAABAAEAAAAGAAIAAAAAAAAAAAAGAAMAAAAAAAEAAAAHAAIAAAABAAAAAAAHAAMAAAABAAEAAAAMAAQAAAAAAAAAAAAMAAUAAAAAAAEAAAANAAQAAAABAAAAAAANAAUAAAABAAEAAAAKAAQAAAAAAAAAAAAKAAUAAAAAAAEAAAALAAQAAAABAAAAAAALAAUAAAABAAEAAAACAAQAAAAAAAAAAAACAAUAAAAAAAEAAAADAAQAAAABAAAAAAADAAUAAAABAAEAAAACAAYAAAAAAAAAAAACAAcAAAAAAAEAAAADAAYAAAABAAAAAAADAAcAAAABAAEAAAACAAgAAAAAAAAAAAACAAkAAAAAAAEAAAADAAgAAAABAAAAAAADAAkAAAABAAEAAAAEAAgAAAAAAAAAAAAEAAkAAAAAAAEAAAAFAAgAAAABAAAAAAAFAAkAAAABAAEAAAAGAAgAAAAAAAAAAAAGAAkAAAAAAAEAAAAHAAgAAAABAAAAAAAHAAkAAAABAAEAAAAIAAgAAAAAAAAAAAAIAAkAAAAAAAEAAAAJAAgAAAABAAAAAAAJAAkAAAABAAEAAAAKAAgAAAAAAAAAAAAKAAkAAAAAAAEAAAALAAgAAAABAAAAAAALAAkAAAABAAEAAAAGAAYAAAAAAAAAAAAGAAcAAAAAAAEAAAAHAAYAAAABAAAAAAAHAAcAAAABAAEAAAAEAAYAAAAAAAAAAAAEAAcAAAAAAAEAAAAFAAYAAAABAAAAAAAFAAcAAAABAAEAAAAQAAAAAAAAAAAAAAAQAAEAAAAAAAEAAAARAAAAAAABAAAAAAARAAEAAAABAAEAAAAQAAIAAAAAAAAAAAAQAAMAAAAAAAEAAAARAAIAAAABAAAAAAARAAMAAAABAAEAAAAQAAQAAAAAAAAAAAAQAAUAAAAAAAEAAAARAAQAAAABAAAAAAARAAUAAAABAAEAAAAQAAYAAAAAAAAAAAAQAAcAAAAAAAEAAAARAAYAAAABAAAAAAARAAcAAAABAAEAAAAQAAgAAAAAAAAAAAAQAAkAAAAAAAEAAAARAAgAAAABAAAAAAARAAkAAAABAAEAAAA=")
+tile_set = SubResource("TileSet_mrq8r")
+
+[node name="table" parent="." instance=ExtResource("2_mrq8r")]
+position = Vector2(150, 109)
+
+[node name="table2" parent="." instance=ExtResource("3_2x3md")]
+position = Vector2(228, 26)
+
+[node name="table3" parent="." instance=ExtResource("3_2x3md")]
+position = Vector2(82, 75)
+
+[node name="table4" parent="." instance=ExtResource("3_2x3md")]
+position = Vector2(228, 104)
+
+[node name="stage" parent="." instance=ExtResource("4_6pmnl")]
+position = Vector2(23, 96)
+
+[node name="Player" parent="." instance=ExtResource("5_77jyt")]
+position = Vector2(24, 111)
+
+[node name="table5" parent="." instance=ExtResource("3_2x3md")]
+position = Vector2(190, 58)
+
+[node name="tavern-bar" parent="." instance=ExtResource("6_77jyt")]
+position = Vector2(18, 38)
+
+[node name="bartender" parent="." instance=ExtResource("7_tet0i")]
+position = Vector2(44, 11)
+walk_time = 1.0
+
+[node name="walls" type="StaticBody2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="walls"]
+shape = SubResource("WorldBoundaryShape2D_tet0i")
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="walls"]
+position = Vector2(0, 160)
+shape = SubResource("WorldBoundaryShape2D_t01rp")
+
+[node name="CollisionShape2D3" type="CollisionShape2D" parent="walls"]
+shape = SubResource("WorldBoundaryShape2D_vj7q8")
+
+[node name="CollisionShape2D4" type="CollisionShape2D" parent="walls"]
+shape = SubResource("WorldBoundaryShape2D_8vh3i")
+
+[node name="farmer" parent="." instance=ExtResource("8_t01rp")]
+position = Vector2(169, 39)
+idle_time = 10.0
+walk_time = 0.5
+
+[node name="farmer2" parent="." instance=ExtResource("8_t01rp")]
+position = Vector2(247, 95)
+move_speed = 15.0
+idle_time = 15.0
+
+[node name="lumberjack" parent="." instance=ExtResource("9_8vh3i")]
+position = Vector2(96, 131)
+move_speed = 10.0
+idle_time = 20.0
+
+[node name="lumberjack2" parent="." instance=ExtResource("9_8vh3i")]
+position = Vector2(209, 127)
+move_speed = 10.0
+idle_time = 15.0
+
+[node name="farmer3" parent="." instance=ExtResource("8_t01rp")]
+position = Vector2(182, 147)
+move_speed = 10.0
+idle_time = 10.0
+
+[node name="miner" parent="." instance=ExtResource("10_aet8r")]
+position = Vector2(255, 54)
+move_speed = 15.0
+idle_time = 13.0
+walk_time = 1.0
+
+[node name="miner2" parent="." instance=ExtResource("10_aet8r")]
+position = Vector2(145, 67)
+move_speed = 13.0
+idle_time = 23.0
+walk_time = 1.0
+
+[node name="Camera2D" type="Camera2D" parent="."]
+anchor_mode = 0
+zoom = Vector2(4, 4)

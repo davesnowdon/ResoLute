@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3 uid="uid://cup38aw2xi1yf"]
+
+[ext_resource type="Texture2D" uid="uid://6sdqa2epbx5n" path="res://art/Cute_Fantasy/House_Decor/Tables.png" id="1_jd0nb"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_v5i0k"]
+size = Vector2(44, 24)
+
+[node name="table" type="StaticBody2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_jd0nb")
+region_enabled = true
+region_rect = Rect2(0, 32, 48, 32)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 2)
+shape = SubResource("RectangleShape2D_v5i0k")

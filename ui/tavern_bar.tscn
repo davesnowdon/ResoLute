@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3 uid="uid://c2p6if1jess2g"]
+
+[ext_resource type="Texture2D" uid="uid://6sdqa2epbx5n" path="res://art/Cute_Fantasy/House_Decor/Tables.png" id="1_5lvh3"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_jf1ia"]
+size = Vector2(108, 23)
+
+[node name="tavern-bar" type="StaticBody2D"]
+metadata/_edit_group_ = true
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_5lvh3")
+region_enabled = true
+region_rect = Rect2(0, 32, 40, 32)
+
+[node name="Sprite2D2" type="Sprite2D" parent="."]
+position = Vector2(36, 0)
+texture = ExtResource("1_5lvh3")
+region_enabled = true
+region_rect = Rect2(8, 32, 32, 32)
+
+[node name="Sprite2D3" type="Sprite2D" parent="."]
+position = Vector2(72, 0)
+texture = ExtResource("1_5lvh3")
+region_enabled = true
+region_rect = Rect2(8, 32, 40, 32)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(36, -2.5)
+shape = SubResource("RectangleShape2D_jf1ia")

@@ -1,0 +1,47 @@
+[gd_scene load_steps=5 format=3 uid="uid://ds70m15fhke0h"]
+
+[ext_resource type="Texture2D" uid="uid://6sdqa2epbx5n" path="res://art/Cute_Fantasy/House_Decor/Tables.png" id="1_6eo5e"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_aees8"]
+size = Vector2(44, 4)
+
+[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_rnkuw"]
+normal = Vector2(1, 0)
+distance = -23.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_gx6sy"]
+size = Vector2(3, 49)
+
+[node name="stage" type="StaticBody2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_6eo5e")
+region_enabled = true
+region_rect = Rect2(0, 40, 48, 16)
+
+[node name="Sprite2D2" type="Sprite2D" parent="."]
+position = Vector2(0, 15)
+texture = ExtResource("1_6eo5e")
+region_enabled = true
+region_rect = Rect2(0, 40, 48, 16)
+
+[node name="Sprite2D3" type="Sprite2D" parent="."]
+position = Vector2(0, 30)
+texture = ExtResource("1_6eo5e")
+region_enabled = true
+region_rect = Rect2(0, 40, 48, 16)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -8)
+shape = SubResource("RectangleShape2D_aees8")
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="."]
+position = Vector2(0, 38)
+shape = SubResource("RectangleShape2D_aees8")
+
+[node name="CollisionShape2D3" type="CollisionShape2D" parent="."]
+shape = SubResource("WorldBoundaryShape2D_rnkuw")
+
+[node name="CollisionShape2D4" type="CollisionShape2D" parent="."]
+position = Vector2(22.5, 14.5)
+shape = SubResource("RectangleShape2D_gx6sy")
