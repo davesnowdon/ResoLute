@@ -29,6 +29,7 @@ var total_segments: int = 4
 # Available destinations for travel
 var available_destinations: Array = []
 
+var origin_name: String = ""
 var travelling_to: String = ""
 
 func _ready() -> void:
@@ -229,7 +230,8 @@ func _start_travel_to(destination: Dictionary) -> void:
 	print("[Location] Starting travel to: ", dest_name, " (id: ", dest_id, ")")
 	
 	# Store current location as origin for travel screen
-	var origin_name = location_data.get("location", {}).get("name", "Unknown")
+	origin_name = location_data.get("location", {}).get("name", "Unknown")
+	travelling_to = dest_name
 	
 	# Store travel info in a global or pass via scene change
 	# For now, we'll request travel and handle the response
