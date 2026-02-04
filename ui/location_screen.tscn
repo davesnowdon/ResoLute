@@ -1,7 +1,6 @@
-[gd_scene load_steps=4 format=3 uid="uid://location_screen"]
+[gd_scene load_steps=3 format=3 uid="uid://cgihg7a70uj5d"]
 
-[ext_resource type="Script" path="res://location_screen.gd" id="1_script"]
-[ext_resource type="Texture2D" uid="uid://resolute_logo" path="res://resolute_logo.png" id="2_logo"]
+[ext_resource type="Script" uid="uid://bon6bs5rlb7ql" path="res://location_screen.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://ecy57rbyqsvm" path="res://art/Cute_Fantasy/Houses_Interiors/Wood_Floor_Tiles.png" id="3_floor"]
 
 [node name="LocationScreen" type="Control"]
@@ -18,6 +17,8 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 color = Color(0.15, 0.22, 0.15, 1)
 
 [node name="MainContainer" type="HBoxContainer" parent="."]
@@ -29,6 +30,8 @@ offset_left = 20.0
 offset_top = 20.0
 offset_right = -20.0
 offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
 theme_override_constants/separation = 20
 
 [node name="LeftPanel" type="VBoxContainer" parent="MainContainer"]
@@ -67,8 +70,8 @@ size_flags_stretch_ratio = 2.0
 layout_mode = 2
 
 [node name="VillageImage" type="TextureRect" parent="MainContainer/LeftPanel/VillageView/VillageContent"]
-layout_mode = 2
 custom_minimum_size = Vector2(400, 250)
+layout_mode = 2
 texture = ExtResource("3_floor")
 expand_mode = 1
 stretch_mode = 2
@@ -194,25 +197,25 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="EnterTavernButton" type="Button" parent="MainContainer/RightPanel/ActionsPanel/ActionsContent/ButtonContainer"]
-layout_mode = 2
 custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "🍺 Enter Tavern"
 
 [node name="TravelButton" type="Button" parent="MainContainer/RightPanel/ActionsPanel/ActionsContent/ButtonContainer"]
-layout_mode = 2
 custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "🗺️ Travel to New Location"
 
 [node name="PracticeButton" type="Button" parent="MainContainer/RightPanel/ActionsPanel/ActionsContent/ButtonContainer"]
-layout_mode = 2
 custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "🎸 Practice Music"
 
 [node name="LogoutButton" type="Button" parent="MainContainer/RightPanel/ActionsPanel/ActionsContent/ButtonContainer"]
-layout_mode = 2
 custom_minimum_size = Vector2(0, 35)
+layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "🚪 Logout"
