@@ -86,8 +86,8 @@ func start_travel(data: Dictionary) -> void:
 	is_complete = session.get("is_complete", false)
 	
 	# Extract destination data if available
-	var dest = data.get("destination", {})
-	destination_name = dest.get("name", "Unknown Destination")
+	#var dest = data.get("destination", {})
+	#destination_name = dest.get("name", "Unknown Destination")
 	
 	# Update UI
 	_update_ui()
@@ -215,12 +215,14 @@ func set_origin(name: String) -> void:
 	if origin_label:
 		origin_label.text = origin_name
 
+
 func set_destination(name: String) -> void:
 	"""Set the destination location name."""
 	print("[Travel] set destination: ", name)
 	destination_name = name
 	if destination_label:
 		destination_label.text = destination_name
+
 
 func cancel_travel() -> void:
 	"""Cancel the current travel."""
