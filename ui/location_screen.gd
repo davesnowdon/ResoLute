@@ -11,7 +11,7 @@ extends Control
 @onready var fragment_list: VBoxContainer = $MainContainer/RightPanel/InventoryPanel/InventoryContent/FragmentList
 
 # Action Buttons
-@onready var enter_tavern_btn: Button = $MainContainer/RightPanel/ActionsPanel/ActionsContent/ButtonContainer/EnterTavernButton
+@onready var perform_btn: Button = $MainContainer/RightPanel/ActionsPanel/ActionsContent/ButtonContainer/PerformButton
 @onready var travel_btn: Button = $MainContainer/RightPanel/ActionsPanel/ActionsContent/ButtonContainer/TravelButton
 @onready var practice_btn: Button = $MainContainer/RightPanel/ActionsPanel/ActionsContent/ButtonContainer/PracticeButton
 @onready var logout_btn: Button = $MainContainer/RightPanel/ActionsPanel/ActionsContent/ButtonContainer/LogoutButton
@@ -34,7 +34,7 @@ var travelling_to: String = ""
 
 func _ready() -> void:
 	# Connect button signals
-	enter_tavern_btn.pressed.connect(_on_enter_tavern_pressed)
+	perform_btn.pressed.connect(_on_perform_pressed)
 	travel_btn.pressed.connect(_on_travel_pressed)
 	practice_btn.pressed.connect(_on_practice_pressed)
 	logout_btn.pressed.connect(_on_logout_pressed)
@@ -199,8 +199,8 @@ func _on_websocket_disconnected() -> void:
 
 
 # Button handlers
-func _on_enter_tavern_pressed() -> void:
-	print("Entering tavern...")
+func _on_perform_pressed() -> void:
+	print("Going to perform at tavern...")
 	get_tree().change_scene_to_file("res://tavern.tscn")
 
 
