@@ -245,7 +245,8 @@ async def handle_message(data: ClientMessage, handler: MessageHandler) -> Server
         return await asyncio.to_thread(handler.handle_inventory)
 
     elif msg_type == "perform":
-        return await asyncio.to_thread(handler.handle_perform)
+        score = data.data.get("score", 1.0) if data.data else 1.0
+        return await asyncio.to_thread(handler.handle_perform, score)
 
     elif msg_type == "final_quest":
         return await asyncio.to_thread(handler.handle_final_quest, data.content)

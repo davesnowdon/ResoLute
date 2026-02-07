@@ -258,11 +258,11 @@ class MessageHandler:
 
             return segment_collected_message(result.unwrap())
 
-    def handle_perform(self) -> ServerMessage:
+    def handle_perform(self, score: float = 1.0) -> ServerMessage:
         """Handle tavern performance."""
         with self.ctx.session() as session:
             quest_service = QuestService(session)
-            result = quest_service.perform_at_tavern(self.player_id)
+            result = quest_service.perform_at_tavern(self.player_id, performance_score=score)
 
             if result.is_err:
                 return error_message(result.error)
