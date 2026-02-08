@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.eggs
+*.egg
+venv/
+.venv/
+.pytest_cache/
+.mypy_cache/
+
+# Godot
+ui/.godot/
+ui/.import/
+*.import
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs
+*.md
+!README.md
+
+# Tests
+tests/
+*_test.py
+test_*.py
