@@ -90,13 +90,8 @@ class QuestService:
             logger.warning(f"[{player_id}] No current location for performance")
             return Result.err("You must be at a location")
 
-        location = self.world_repo.get_location_by_id(player.current_location_id)
-        if location is None or location.location_type != LocationType.TAVERN.value:
-            logger.warning(
-                f"[{player_id}] Must be at tavern to perform "
-                f"(at location_id={player.current_location_id})"
-            )
-            return Result.err("You must be at a tavern to perform")
+        # Note: Tavern is assumed to exist at every location (simplified flow)
+        # No longer requires player to be at a specific tavern location type
 
         inventory = self.get_inventory(player_id)
         if inventory.is_err:

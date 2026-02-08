@@ -142,8 +142,8 @@ func collect_segment(segment_id: int) -> void:
 	send_message("collect", "", {"segment_id": segment_id})
 
 ## Perform at tavern
-func perform() -> void:
-	send_message("perform")
+func perform(score: float = 1.0) -> void:
+	send_message("perform", "", {"score": score})
 
 ## Chat with mentor
 func chat(message: String) -> void:
