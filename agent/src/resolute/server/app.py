@@ -1,10 +1,14 @@
-"""FastAPI application with WebSocket endpoint."""
+"""FastAPI application with WebSocket endpoint and static file serving."""
 
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import ValidationError
 
 from resolute.agent import MentorAgent
@@ -24,6 +28,30 @@ from resolute.server.messages import (
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Determine the path to the web build directory
+# This works both in development and when deployed
+def get_web_build_path() -> Path:
+    """Get the path to the Godot web build directory."""
+    # Check environment variable first (for deployment flexibility)
+    env_path = os.environ.get("RESOLUTE_WEB_BUILD_PATH")
+    if env_path:
+        return Path(env_path)
+
+    # Default paths to check (relative to different possible working directories)
+    possible_paths = [
+        Path(__file__).parent.parent.parent.parent.parent / "build" / "web",  # From src/resolute/server/
+        Path.cwd() / "build" / "web",  # From ResoLute/agent/
+        Path.cwd().parent / "build" / "web",  # From ResoLute/agent/src/
+        Path("/app/build/web"),  # Docker/container deployment
+    ]
+
+    for path in possible_paths:
+        if path.exists() and (path / "index.html").exists():
+            return path
+
+    # Return the most likely path even if it doesn't exist yet
+    return Path(__file__).parent.parent.parent.parent.parent / "build" / "web"
 
 
 class ConnectionManager:
@@ -101,6 +129,14 @@ async def lifespan(app: FastAPI):
         seed_exercises_and_songs(session)
     logger.info("Database initialized")
 
+    # Log web build path
+    web_path = get_web_build_path()
+    if web_path.exists():
+        logger.info(f"Serving Godot web build from: {web_path}")
+    else:
+        logger.warning(f"Web build directory not found: {web_path}")
+        logger.warning("Run 'make export-web' or './export_web.sh' to build the game")
+
     yield
 
     # Shutdown
@@ -109,7 +145,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="ResoLute Backend",
-    description="WebSocket server for ResoLute music-learning game",
+    description="WebSocket server for ResoLute music-learning game with integrated web frontend",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -119,6 +155,23 @@ app = FastAPI(
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "service": "resolute"}
+
+
+@app.get("/api/info")
+async def api_info():
+    """API information endpoint."""
+    web_path = get_web_build_path()
+    return {
+        "service": "resolute",
+        "version": "0.1.0",
+        "web_build_available": web_path.exists(),
+        "web_build_path": str(web_path),
+        "endpoints": {
+            "websocket": "/ws",
+            "health": "/health",
+            "game": "/" if web_path.exists() else None,
+        }
+    }
 
 
 @app.websocket("/ws")
@@ -260,3 +313,21 @@ async def handle_message(data: ClientMessage, handler: MessageHandler) -> Server
 
     else:
         return error_message(f"Unknown message type: {msg_type}")
+
+
+# Mount static files for the Godot web build
+# This must be done after all API routes are defined
+web_build_path = get_web_build_path()
+if web_build_path.exists():
+    # Serve the game at root - html=True enables serving index.html for /
+    app.mount("/", StaticFiles(directory=str(web_build_path), html=True), name="game")
+else:
+    # Fallback: serve a simple page explaining the game isn't built yet
+    @app.get("/")
+    async def game_not_built():
+        return {
+            "message": "ResoLute game not built yet",
+            "instructions": "Run 'make export-web' or './export_web.sh' from the ResoLute directory to build the game",
+            "api_available": True,
+            "websocket_endpoint": "/ws",
+        }
