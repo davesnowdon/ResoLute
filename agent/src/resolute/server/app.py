@@ -6,9 +6,11 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import ValidationError
 
 from resolute.agent import MentorAgent
@@ -29,29 +31,63 @@ from resolute.server.messages import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Determine the path to the web build directory
-# This works both in development and when deployed
-def get_web_build_path() -> Path:
-    """Get the path to the Godot web build directory."""
+
+class CrossOriginIsolationMiddleware(BaseHTTPMiddleware):
+    """Middleware to add Cross-Origin Isolation headers required by Godot web exports.
+
+    Godot 4.x web exports require SharedArrayBuffer for threading, which requires:
+    - Cross-Origin-Opener-Policy: same-origin
+    - Cross-Origin-Embedder-Policy: require-corp
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+
+        # Add Cross-Origin Isolation headers
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+
+        return response
+
+
+def get_web_build_path() -> Path | None:
+    """Get the path to the Godot web build directory.
+
+    Returns None if no valid build directory is found.
+    """
     # Check environment variable first (for deployment flexibility)
     env_path = os.environ.get("RESOLUTE_WEB_BUILD_PATH")
     if env_path:
-        return Path(env_path)
-
-    # Default paths to check (relative to different possible working directories)
-    possible_paths = [
-        Path(__file__).parent.parent.parent.parent.parent / "build" / "web",  # From src/resolute/server/
-        Path.cwd() / "build" / "web",  # From ResoLute/agent/
-        Path.cwd().parent / "build" / "web",  # From ResoLute/agent/src/
-        Path("/app/build/web"),  # Docker/container deployment
-    ]
-
-    for path in possible_paths:
+        path = Path(env_path)
         if path.exists() and (path / "index.html").exists():
             return path
 
-    # Return the most likely path even if it doesn't exist yet
-    return Path(__file__).parent.parent.parent.parent.parent / "build" / "web"
+    # Get the directory containing this file
+    this_file = Path(__file__).resolve()
+
+    # Default paths to check (relative to different possible working directories)
+    possible_paths = [
+        # From src/resolute/server/app.py -> go up to agent/, then up to ResoLute/, then build/web
+        this_file.parent.parent.parent.parent.parent / "build" / "web",
+        # From current working directory
+        Path.cwd() / "build" / "web",
+        # From parent of cwd (if running from agent/)
+        Path.cwd().parent / "build" / "web",
+        # Docker/container deployment
+        Path("/app/build/web"),
+    ]
+
+    for path in possible_paths:
+        resolved = path.resolve()
+        if resolved.exists() and (resolved / "index.html").exists():
+            logger.info(f"Found web build at: {resolved}")
+            return resolved
+
+    logger.warning("No web build directory found. Checked paths:")
+    for path in possible_paths:
+        logger.warning(f"  - {path.resolve()} (exists: {path.exists()})")
+
+    return None
 
 
 class ConnectionManager:
@@ -110,6 +146,9 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+# Detect web build path at module load time
+_web_build_path = get_web_build_path()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -130,11 +169,11 @@ async def lifespan(app: FastAPI):
     logger.info("Database initialized")
 
     # Log web build path
-    web_path = get_web_build_path()
-    if web_path.exists():
-        logger.info(f"Serving Godot web build from: {web_path}")
+    if _web_build_path:
+        logger.info(f"Serving Godot web build from: {_web_build_path}")
+        logger.info("Cross-Origin Isolation headers enabled for SharedArrayBuffer support")
     else:
-        logger.warning(f"Web build directory not found: {web_path}")
+        logger.warning("Web build directory not found!")
         logger.warning("Run 'make export-web' or './export_web.sh' to build the game")
 
     yield
@@ -150,6 +189,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Add Cross-Origin Isolation middleware (required for Godot web exports)
+# This must be added before other middleware
+app.add_middleware(CrossOriginIsolationMiddleware)
+
+# Add CORS middleware for API access from other origins if needed
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure as needed for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.get("/health")
 async def health_check():
@@ -160,16 +212,16 @@ async def health_check():
 @app.get("/api/info")
 async def api_info():
     """API information endpoint."""
-    web_path = get_web_build_path()
     return {
         "service": "resolute",
         "version": "0.1.0",
-        "web_build_available": web_path.exists(),
-        "web_build_path": str(web_path),
+        "web_build_available": _web_build_path is not None,
+        "web_build_path": str(_web_build_path) if _web_build_path else None,
+        "cross_origin_isolation": True,
         "endpoints": {
             "websocket": "/ws",
             "health": "/health",
-            "game": "/" if web_path.exists() else None,
+            "game": "/" if _web_build_path else None,
         }
     }
 
@@ -317,14 +369,22 @@ async def handle_message(data: ClientMessage, handler: MessageHandler) -> Server
 
 # Mount static files for the Godot web build
 # This must be done after all API routes are defined
-web_build_path = get_web_build_path()
-if web_build_path.exists():
-    # Serve the game at root - html=True enables serving index.html for /
-    app.mount("/", StaticFiles(directory=str(web_build_path), html=True), name="game")
+if _web_build_path:
+    # Serve index.html explicitly at root to ensure it works
+    @app.get("/", response_class=HTMLResponse)
+    async def serve_game_index():
+        """Serve the game index.html at root."""
+        index_path = _web_build_path / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path, media_type="text/html")
+        return HTMLResponse("<h1>Game not found</h1>", status_code=404)
+
+    # Mount static files for all other game assets
+    app.mount("/", StaticFiles(directory=str(_web_build_path)), name="game")
 else:
-    # Fallback: serve a simple page explaining the game isn't built yet
     @app.get("/")
     async def game_not_built():
+        """Fallback when game is not built."""
         return {
             "message": "ResoLute game not built yet",
             "instructions": "Run 'make export-web' or './export_web.sh' from the ResoLute directory to build the game",
