@@ -45,8 +45,22 @@ fi
 GODOT_VERSION=$($GODOT_CMD --version 2>/dev/null | head -1)
 echo -e "${YELLOW}Using Godot: $GODOT_VERSION${NC}"
 
-# Extract version number (e.g., "4.6.stable" from "4.6.stable.official.89cea1439")
-VERSION_SHORT=$(echo "$GODOT_VERSION" | grep -oE '^[0-9]+\.[0-9]+\.?[a-z]*' | head -1)
+# Extract version number for export templates directory
+# Handles both formats:
+#   - "4.6.stable.official.89cea1439" -> "4.6.stable"
+#   - "4.5.1.stable.official.f62fdbde1" -> "4.5.1.stable"
+# The templates directory uses: major.minor[.patch].status (e.g., 4.5.1.stable or 4.6.stable)
+
+# Method: Extract everything before ".official" or before the commit hash
+# First try to match the pattern: digits.digits[.digits].word (e.g., 4.5.1.stable or 4.6.stable)
+VERSION_SHORT=$(echo "$GODOT_VERSION" | grep -oE '^[0-9]+\.[0-9]+(\.[0-9]+)?\.[a-z]+' | head -1)
+
+# Fallback: try cutting at ".official"
+if [[ -z "$VERSION_SHORT" ]]; then
+    VERSION_SHORT=$(echo "$GODOT_VERSION" | sed 's/\.official.*//')
+fi
+
+# Final fallback: just use major.minor
 if [[ -z "$VERSION_SHORT" ]]; then
     VERSION_SHORT=$(echo "$GODOT_VERSION" | cut -d'.' -f1-2)
 fi
