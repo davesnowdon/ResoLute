@@ -12,6 +12,10 @@
 [ext_resource type="PackedScene" uid="uid://bgwtoms0phiht" path="res://farmer.tscn" id="8_t01rp"]
 [ext_resource type="PackedScene" uid="uid://f5nu4dfo6qxy" path="res://lumberjack.tscn" id="9_8vh3i"]
 [ext_resource type="PackedScene" uid="uid://kjgttepwsaxu" path="res://miner.tscn" id="10_aet8r"]
+[ext_resource type="Texture2D" path="res://art/icons/trophy.png" id="11_trophy"]
+[ext_resource type="Texture2D" path="res://art/icons/x_red.png" id="12_stop"]
+[ext_resource type="Texture2D" path="res://art/icons/arrow_left_white.png" id="13_leave"]
+
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_k053i"]
 texture = ExtResource("1_4xy5q")
@@ -213,7 +217,8 @@ offset_left = -80.0
 offset_top = 52.0
 offset_right = 80.0
 offset_bottom = 77.0
-text = "🎵 Perform"
+text = "Perform"
+icon = ExtResource("11_trophy")
 
 [node name="StopButton" type="Button" parent="UILayer/PerformPanel"]
 visible = false
@@ -236,7 +241,8 @@ offset_left = -80.0
 offset_top = 82.0
 offset_right = 80.0
 offset_bottom = 107.0
-text = "🚪 Leave"
+text = "Leave"
+icon = ExtResource("13_leave")
 
 [node name="RewardsPanel" type="Panel" parent="UILayer"]
 visible = false
