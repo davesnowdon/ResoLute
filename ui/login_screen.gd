@@ -6,9 +6,6 @@ extends Control
 @onready var start_quest_button: Button = $CenterContainer/VBoxContainer/StartQuestButton
 @onready var back_button: Button = $CenterContainer/VBoxContainer/BackButton
 
-# Server configuration
-const SERVER_URL = "ws://localhost:8000/ws"
-
 # State
 var _connecting: bool = false
 
@@ -93,8 +90,8 @@ func _on_start_quest_pressed() -> void:
 		WebSocket.authenticate(username, password)
 	else:
 		# Need to connect first
-		print("[Login] Connecting to server: ", SERVER_URL)
-		var err = WebSocket.connect_to_server(SERVER_URL)
+		print("[Login] Connecting to server... ")
+		var err = WebSocket.connect_to_server()
 		if err != OK:
 			show_error("⚠ Failed to connect to server")
 			return
