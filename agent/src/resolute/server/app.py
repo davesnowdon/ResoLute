@@ -222,7 +222,7 @@ async def api_info():
             "websocket": "/ws",
             "health": "/health",
             "game": "/" if _web_build_path else None,
-        }
+        },
     }
 
 
@@ -257,12 +257,16 @@ async def websocket_endpoint_auth(websocket: WebSocket):
             try:
                 data = ClientMessage.model_validate_json(raw_message)
             except ValidationError as e:
-                await websocket.send_json(error_message(f"Invalid message format: {e}").model_dump())
+                await websocket.send_json(
+                    error_message(f"Invalid message format: {e}").model_dump()
+                )
                 continue
 
             if data.type != "authenticate":
                 await websocket.send_json(
-                    error_message("Please authenticate first. Send type='authenticate' with username and password.").model_dump()
+                    error_message(
+                        "Please authenticate first. Send type='authenticate' with username and password."
+                    ).model_dump()
                 )
                 continue
 
@@ -270,7 +274,9 @@ async def websocket_endpoint_auth(websocket: WebSocket):
             username = data.data.get("username", "")
             password = data.data.get("password", "")
 
-            success, auth_msg, authenticated_player_id = auth_handler.authenticate(username, password)
+            success, auth_msg, authenticated_player_id = auth_handler.authenticate(
+                username, password
+            )
             await websocket.send_json(auth_msg.model_dump())
 
             if success:
@@ -382,6 +388,7 @@ if _web_build_path:
     # Mount static files for all other game assets
     app.mount("/", StaticFiles(directory=str(_web_build_path)), name="game")
 else:
+
     @app.get("/")
     async def game_not_built():
         """Fallback when game is not built."""

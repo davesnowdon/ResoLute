@@ -172,9 +172,7 @@ class Location(Base):
 
     # Relationships
     world: Mapped["World"] = relationship(back_populates="locations")
-    segments: Mapped[list["SongSegment"]] = relationship(
-        back_populates="location", lazy="selectin"
-    )
+    segments: Mapped[list["SongSegment"]] = relationship(back_populates="location", lazy="selectin")
 
     def to_dict(self, include_segments: bool = True) -> dict:
         """Convert location to dictionary for API responses.

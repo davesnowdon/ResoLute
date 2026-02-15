@@ -117,7 +117,7 @@ def format_response(response_data: dict) -> str:
 
     elif msg_type == "auth_success":
         player = data.get("player", {})
-        return f"[AUTH] Welcome {player.get("name", "player")}! Level {player.get("level", 1)}"
+        return f"[AUTH] Welcome {player.get('name', 'player')}! Level {player.get('level', 1)}"
 
     elif msg_type == "auth_failed":
         return f"[AUTH FAILED] {content}"
@@ -128,14 +128,14 @@ def format_response(response_data: dict) -> str:
             lines.append("Locations:")
             for loc in data["locations"]:
                 status = "unlocked" if loc.get("is_unlocked") else "locked"
-                lines.append(f"  - {loc["name"]} ({loc["type"]}) [{status}]")
+                lines.append(f"  - {loc['name']} ({loc['type']}) [{status}]")
                 if loc.get("segments"):
                     for seg in loc["segments"]:
-                        lines.append(f"      Segment: {seg["name"]} (ID: {seg["id"]})")
+                        lines.append(f"      Segment: {seg['name']} (ID: {seg['id']})")
         if data.get("final_monster"):
-            lines.append(f"Final Boss: {data["final_monster"]}")
+            lines.append(f"Final Boss: {data['final_monster']}")
         if data.get("rescue_target"):
-            lines.append(f"Rescue: {data["rescue_target"]}")
+            lines.append(f"Rescue: {data['rescue_target']}")
         return "\n".join(lines)
 
     elif msg_type == "world_generating":
@@ -143,11 +143,11 @@ def format_response(response_data: dict) -> str:
 
     elif msg_type == "exercise_state":
         if data.get("is_complete"):
-            return f"[EXERCISE] {data.get("exercise_name", "Exercise")} COMPLETE! Type /complete to finish."
+            return f"[EXERCISE] {data.get('exercise_name', 'Exercise')} COMPLETE! Type /complete to finish."
         else:
             remaining = data.get("remaining_seconds", 0)
             progress = data.get("progress_percent", 0)
-            return f"[EXERCISE] {data.get("exercise_name", "Exercise")} - {progress:.0f}% ({remaining:.0f}s left)"
+            return f"[EXERCISE] {data.get('exercise_name', 'Exercise')} - {progress:.0f}% ({remaining:.0f}s left)"
 
     elif msg_type == "exercise_complete":
         rewards = data.get("rewards", {})
@@ -158,19 +158,19 @@ def format_response(response_data: dict) -> str:
 
     elif msg_type == "segment_collected":
         segment = data.get("segment", {})
-        return f"[COLLECTED] {segment.get("name", "Segment")} - {segment.get("description", "")}"
+        return f"[COLLECTED] {segment.get('name', 'Segment')} - {segment.get('description', '')}"
 
     elif msg_type == "inventory_update":
         lines = [f"[INVENTORY] {content}"]
         for seg in data.get("collected_segments", []):
-            lines.append(f"  - {seg["name"]}")
+            lines.append(f"  - {seg['name']}")
         if data.get("can_perform_final"):
             lines.append("You have all segments! You can attempt the final quest with /final")
         return "\n".join(lines)
 
     elif msg_type == "performance_result":
         rewards = data.get("rewards", {})
-        return f"[PERFORMANCE] {content} (Score: {rewards.get("performance_score", 0)}%)"
+        return f"[PERFORMANCE] {content} (Score: {rewards.get('performance_score', 0)}%)"
 
     elif msg_type == "game_complete":
         if data.get("victory"):
@@ -182,8 +182,8 @@ def format_response(response_data: dict) -> str:
         loc = data.get("location", {})
         lines = [f"[LOCATION] {content}"]
         if loc:
-            lines.append(f"  Name: {loc.get("name", "Unknown")}")
-            lines.append(f"  Type: {loc.get("type", "unknown")}")
+            lines.append(f"  Name: {loc.get('name', 'Unknown')}")
+            lines.append(f"  Type: {loc.get('type', 'unknown')}")
         return "\n".join(lines)
 
     else:
@@ -204,10 +204,7 @@ async def authenticate(websocket, username: str, password: str) -> tuple[bool, s
     auth_msg = {
         "type": "authenticate",
         "content": "",
-        "data": {
-            "username": username,
-            "password": password
-        }
+        "data": {"username": username, "password": password},
     }
 
     await websocket.send(json.dumps(auth_msg))

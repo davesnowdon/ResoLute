@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     host: str = Field(default="0.0.0.0", description="Server host")
     port: int = Field(default=8000, description="Server port")
 
+    # Authentication
+    demo_credentials: str = Field(
+        default="demo:demo",
+        description="Demo credentials as 'user1:pass1,user2:pass2'",
+    )
+
     # Database
     database_url: str = Field(
         default="sqlite+aiosqlite:///./resolute.db",

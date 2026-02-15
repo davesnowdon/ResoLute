@@ -20,9 +20,7 @@ class LocationSchema(BaseModel):
     name: str = Field(description="Name of the location")
     description: str = Field(description="Brief location description")
     type: str = Field(default="village", description="village|tavern|path|dungeon")
-    exercise_focus: str = Field(
-        description="rhythm|melody|harmony|ear_training|sight_reading"
-    )
+    exercise_focus: str = Field(description="rhythm|melody|harmony|ear_training|sight_reading")
 
 
 class WorldSchema(BaseModel):
@@ -77,9 +75,7 @@ class WorldGenerator:
             logger.warning(f"Structured output failed: {type(e).__name__}: {e}")
             return None
 
-    def generate_world(
-        self, player_id: str, player_name: str | None = None
-    ) -> dict[str, Any]:
+    def generate_world(self, player_id: str, player_name: str | None = None) -> dict[str, Any]:
         """Generate a new world for a player using AI."""
         name = player_name or f"Bard {player_id[:8]}"
 
@@ -228,5 +224,3 @@ class WorldGenerator:
                 },
             ],
         }
-
-

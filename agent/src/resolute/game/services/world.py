@@ -127,7 +127,9 @@ class WorldService:
         for location in sorted(world.locations, key=lambda x: x.order_index):
             if not location.is_unlocked:
                 self.world_repo.unlock_location(location)
-                logger.info(f"[{player_id}] Location unlocked: '{location.name}' (id={location.id})")
+                logger.info(
+                    f"[{player_id}] Location unlocked: '{location.name}' (id={location.id})"
+                )
                 return Result.ok(True)
 
         logger.debug(f"[{player_id}] All locations already unlocked")

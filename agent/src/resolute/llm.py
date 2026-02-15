@@ -36,9 +36,7 @@ def create_chat_model(model: str, temperature: float = 0.7) -> BaseChatModel:
         provider, model_name = model.split("/", 1)
     else:
         logger.error(f"Invalid model format: {model}")
-        raise ValueError(
-            f"Model must be in 'provider/model_name' format, got: {model}"
-        )
+        raise ValueError(f"Model must be in 'provider/model_name' format, got: {model}")
 
     logger.info(f"Initializing LLM: provider={provider}, model={model_name}")
     return init_chat_model(model_name, model_provider=provider, temperature=temperature)
