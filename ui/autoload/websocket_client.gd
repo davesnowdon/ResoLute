@@ -55,8 +55,24 @@ func _process(_delta: float) -> void:
 			print("[WebSocket] Connection closed: ", code, " - ", reason)
 			_on_disconnected()
 
+
+func _get_server_url() -> String:
+	if OS.has_feature("web"):
+		# Running in browser — derive from current page URL
+		var js_result = JavaScriptBridge.eval("""
+			(function() {
+			    var proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+			    return proto + '//' + window.location.host + '/ws';
+			})()
+		""")
+		if js_result:
+			return js_result
+	return DEFAULT_SERVER_URL
+
 ## Connect to the WebSocket server
-func connect_to_server(url: String = DEFAULT_SERVER_URL) -> Error:
+func connect_to_server(url: String = "") -> Error:
+	if url == "":
+		url = _get_server_url()
 	if state != State.DISCONNECTED:
 		push_warning("Already connected or connecting")
 		return ERR_ALREADY_IN_USE
