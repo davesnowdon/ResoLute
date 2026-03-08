@@ -146,5 +146,3 @@ class ExerciseTimer:
         """Check if a player can complete their exercise (timer finished)."""
         session = self.get_session(player_id)
         return session is not None and session.is_complete
-
-

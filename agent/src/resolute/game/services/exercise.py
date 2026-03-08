@@ -63,12 +63,14 @@ class ExerciseService:
             f"(exercise: {exercise.name}, {exercise.duration_seconds}s)"
         )
 
-        return Result.ok({
-            "status": "travel_started",
-            "exercise": exercise.to_dict(),
-            "session": exercise_session.to_dict(),
-            "destination": destination.to_dict(include_segments=False),
-        })
+        return Result.ok(
+            {
+                "status": "travel_started",
+                "exercise": exercise.to_dict(),
+                "session": exercise_session.to_dict(),
+                "destination": destination.to_dict(include_segments=False),
+            }
+        )
 
     def check_exercise(self, player_id: str) -> Result[dict]:
         """Check the status of a player's current exercise."""
@@ -135,7 +137,9 @@ class ExerciseService:
         # Update location if traveling
         if exercise_session.destination_location_id:
             player.current_location_id = exercise_session.destination_location_id
-            logger.info(f"[{player_id}] Arrived at location_id={exercise_session.destination_location_id}")
+            logger.info(
+                f"[{player_id}] Arrived at location_id={exercise_session.destination_location_id}"
+            )
 
             # Unlock next location
             world_service = WorldService(self.session)
@@ -151,9 +155,11 @@ class ExerciseService:
         reward.level_up = player.level > old_level
         reward.new_level = player.level if reward.level_up else None
 
-        return Result.ok({
-            "status": "exercise_completed",
-            "rewards": reward.to_dict(),
-            "new_location_id": exercise_session.destination_location_id,
-            "player": player.to_dict(),
-        })
+        return Result.ok(
+            {
+                "status": "exercise_completed",
+                "rewards": reward.to_dict(),
+                "new_location_id": exercise_session.destination_location_id,
+                "player": player.to_dict(),
+            }
+        )

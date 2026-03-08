@@ -2,6 +2,12 @@
 
 [ext_resource type="Script" uid="uid://bon6bs5rlb7ql" path="res://location_screen.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://e10gs7am4k6y" path="res://art/Cute_Fantasy/House_2_Wood_Base_Black.png" id="2_duldh"]
+[ext_resource type="Texture2D" path="res://art/icons/star_yellow.png" id="3_star"]
+[ext_resource type="Texture2D" path="res://art/icons/trophy.png" id="4_trophy"]
+[ext_resource type="Texture2D" path="res://art/icons/scroll.png" id="5_scroll"]
+[ext_resource type="Texture2D" path="res://art/icons/arrow_right_white.png" id="6_arrow"]
+[ext_resource type="Texture2D" path="res://art/icons/person.png" id="7_person"]
+
 
 [node name="LocationScreen" type="Control" unique_id=1309447664]
 layout_mode = 3
@@ -51,7 +57,7 @@ theme_override_constants/separation = 5
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.9, 0.6, 1)
 theme_override_font_sizes/font_size = 32
-text = "🏰 Willowdale Village"
+text = " Willowdale Village"
 horizontal_alignment = 1
 
 [node name="LocationDesc" type="Label" parent="MainContainer/LeftPanel/LocationHeader/HeaderContent" unique_id=1615674815]
@@ -79,7 +85,7 @@ stretch_mode = 2
 [node name="VillageLabel" type="Label" parent="MainContainer/LeftPanel/VillageView/VillageContent" unique_id=350268842]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "🏠 Village Square 🌳"
+text = " Village Square "
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -95,7 +101,7 @@ theme_override_constants/separation = 10
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.8, 1, 1)
 theme_override_font_sizes/font_size = 18
-text = "🧙 Mentor Melodius says:"
+text = " Mentor Melodius says:"
 
 [node name="MentorMessage" type="Label" parent="MainContainer/LeftPanel/MentorPanel/MentorContent" unique_id=2051667619]
 layout_mode = 2
@@ -119,28 +125,28 @@ theme_override_constants/separation = 8
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.8, 0.5, 1)
 theme_override_font_sizes/font_size = 20
-text = "📊 Hero Stats"
+text = "Hero Stats"
 horizontal_alignment = 1
 
 [node name="PlayerName" type="Label" parent="MainContainer/RightPanel/StatsPanel/StatsContent" unique_id=1613495704]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "🎭 Name: Brave Bard"
+text = " Name: Brave Bard"
 
 [node name="Level" type="Label" parent="MainContainer/RightPanel/StatsPanel/StatsContent" unique_id=1367741998]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-text = "⭐ Level: 1"
+text = "Level: 1"
 
 [node name="Experience" type="Label" parent="MainContainer/RightPanel/StatsPanel/StatsContent" unique_id=1934996852]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-text = "✨ Experience: 0 / 100"
+text = " Experience: 0 / 100"
 
 [node name="SongsLearned" type="Label" parent="MainContainer/RightPanel/StatsPanel/StatsContent" unique_id=1212710424]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-text = "🎵 Songs Learned: 0"
+text = "Fragments: 0"
 
 [node name="InventoryPanel" type="PanelContainer" parent="MainContainer/RightPanel" unique_id=1899871422]
 layout_mode = 2
@@ -154,7 +160,7 @@ theme_override_constants/separation = 8
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.6, 1, 1)
 theme_override_font_sizes/font_size = 20
-text = "🎼 Song Fragments"
+text = "Song Fragments"
 horizontal_alignment = 1
 
 [node name="FragmentList" type="VBoxContainer" parent="MainContainer/RightPanel/InventoryPanel/InventoryContent" unique_id=1585966993]
@@ -164,12 +170,12 @@ size_flags_vertical = 3
 [node name="Fragment1" type="Label" parent="MainContainer/RightPanel/InventoryPanel/InventoryContent/FragmentList" unique_id=1001064703]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "📜 Verse of Courage (2/4 pieces)"
+text = " Verse of Courage (2/4 pieces)"
 
 [node name="Fragment2" type="Label" parent="MainContainer/RightPanel/InventoryPanel/InventoryContent/FragmentList" unique_id=30146994]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "📜 Melody of Wisdom (0/4 pieces)"
+text = " Melody of Wisdom (0/4 pieces)"
 
 [node name="EmptyLabel" type="Label" parent="MainContainer/RightPanel/InventoryPanel/InventoryContent/FragmentList" unique_id=1046624503]
 layout_mode = 2
@@ -189,7 +195,7 @@ theme_override_constants/separation = 10
 layout_mode = 2
 theme_override_colors/font_color = Color(0.5, 1, 0.5, 1)
 theme_override_font_sizes/font_size = 18
-text = "⚔️ Actions"
+text = "Actions"
 horizontal_alignment = 1
 
 [node name="ButtonContainer" type="VBoxContainer" parent="MainContainer/RightPanel/ActionsPanel/ActionsContent" unique_id=167812607]
@@ -200,22 +206,24 @@ theme_override_constants/separation = 8
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-text = "🎵 Perform"
+text = "Perform"
+icon = ExtResource("4_trophy")
 
 [node name="TravelButton" type="Button" parent="MainContainer/RightPanel/ActionsPanel/ActionsContent/ButtonContainer" unique_id=1931844964]
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-text = "🗺️ Travel to New Location"
+text = "Travel"
+icon = ExtResource("6_arrow")
 
 [node name="PracticeButton" type="Button" parent="MainContainer/RightPanel/ActionsPanel/ActionsContent/ButtonContainer" unique_id=1997363365]
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-text = "🎸 Practice Music"
+text = " Practice Music"
 
 [node name="LogoutButton" type="Button" parent="MainContainer/RightPanel/ActionsPanel/ActionsContent/ButtonContainer" unique_id=460858368]
 custom_minimum_size = Vector2(0, 35)
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "🚪 Logout"
+text = " Logout"

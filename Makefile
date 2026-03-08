@@ -2,7 +2,7 @@
 # Convenience commands for building, testing, and running
 # Uses hatch for Python environment management (see agent/pyproject.toml)
 
-.PHONY: export-web serve clean help run dev build-all test lint format check-hatch
+.PHONY: export-web serve deploy clean help run dev build-all test lint format check-hatch
 
 # Default Godot command (can be overridden)
 GODOT_CMD ?= godot
@@ -32,6 +32,9 @@ export-web: ## Export the Godot project for web
 serve-game: ## Start a local web server to test the game build only
 	@echo "Starting local server at http://localhost:8080"
 	@cd build/web && python3 -m http.server 8080
+
+deploy: export-web
+	railway up --no-gitignore
 
 clean: ## Clean build artifacts
 	@rm -rf build/web/*

@@ -77,7 +77,9 @@ class PlayerService:
             logger.info(f"[{player_id}] Level up! {old_level} -> {new_level}")
 
         self.player_repo.update(player)
-        logger.debug(f"[{player_id}] Stats updated: xp+{xp_delta}, gold+{gold_delta}, rep+{reputation_delta}")
+        logger.debug(
+            f"[{player_id}] Stats updated: xp+{xp_delta}, gold+{gold_delta}, rep+{reputation_delta}"
+        )
         return Result.ok(player)
 
     def set_location(self, player_id: str, location_id: int) -> Result[Player]:
@@ -109,9 +111,7 @@ class PlayerService:
             return Result.err("Location not found")
 
         # Get available destinations
-        destinations = self.world_repo.get_unlocked_destinations(
-            location.world_id, location.id
-        )
+        destinations = self.world_repo.get_unlocked_destinations(location.world_id, location.id)
 
         # Also include the next locked location (allows progression)
         next_locked = self.world_repo.get_next_locked_location(location.world_id)
@@ -121,17 +121,15 @@ class PlayerService:
         # Check for uncollected segments
         collected_ids = self.progress_repo.get_collected_segment_ids(player_id)
         uncollected_segments = [
-            segment.to_dict()
-            for segment in location.segments
-            if segment.id not in collected_ids
+            segment.to_dict() for segment in location.segments if segment.id not in collected_ids
         ]
 
-        return Result.ok({
-            "location": location.to_dict(),
-            "available_destinations": [
-                d.to_dict(include_segments=False) for d in destinations
-            ],
-            "uncollected_segments": uncollected_segments,
-            "can_travel": len(destinations) > 0,
-            "has_tavern": location.location_type == LocationType.TAVERN.value,
-        })
+        return Result.ok(
+            {
+                "location": location.to_dict(),
+                "available_destinations": [d.to_dict(include_segments=False) for d in destinations],
+                "uncollected_segments": uncollected_segments,
+                "can_travel": len(destinations) > 0,
+                "has_tavern": location.location_type == LocationType.TAVERN.value,
+            }
+        )

@@ -60,15 +60,11 @@ class WorldRepository:
     def get_locations_for_world(self, world_id: int) -> list[Location]:
         """Get all locations for a world ordered by index."""
         result = self.session.execute(
-            select(Location)
-            .where(Location.world_id == world_id)
-            .order_by(Location.order_index)
+            select(Location).where(Location.world_id == world_id).order_by(Location.order_index)
         )
         return list(result.scalars().all())
 
-    def get_unlocked_destinations(
-        self, world_id: int, exclude_location_id: int
-    ) -> list[Location]:
+    def get_unlocked_destinations(self, world_id: int, exclude_location_id: int) -> list[Location]:
         """Get unlocked locations for travel destinations."""
         result = self.session.execute(
             select(Location)
@@ -142,9 +138,7 @@ class WorldRepository:
 
     def get_default_song(self) -> Song | None:
         """Get the default final song."""
-        result = self.session.execute(
-            select(Song).where(Song.is_final_song.is_(True)).limit(1)
-        )
+        result = self.session.execute(select(Song).where(Song.is_final_song.is_(True)).limit(1))
         return result.scalar_one_or_none()
 
     def get_song_segments(self, song_id: int) -> list[SongSegment]:
@@ -158,9 +152,7 @@ class WorldRepository:
 
     def get_segment_by_id(self, segment_id: int) -> SongSegment | None:
         """Get a song segment by ID."""
-        result = self.session.execute(
-            select(SongSegment).where(SongSegment.id == segment_id)
-        )
+        result = self.session.execute(select(SongSegment).where(SongSegment.id == segment_id))
         return result.scalar_one_or_none()
 
     def update_segment_location(self, segment: SongSegment, location_id: int) -> None:

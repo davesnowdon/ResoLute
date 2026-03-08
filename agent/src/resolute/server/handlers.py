@@ -3,6 +3,7 @@
 import logging
 
 from resolute.agent import MentorAgent
+from resolute.config import get_settings
 from resolute.context import AppContext
 from resolute.game.services import ExerciseService, PlayerService, QuestService, WorldService
 from resolute.server.messages import (
@@ -23,14 +24,16 @@ from resolute.server.messages import (
 
 logger = logging.getLogger(__name__)
 
-# Hardcoded credentials for initial implementation
-# TODO: Replace with proper user database
-VALID_CREDENTIALS = {
-    "hero": "quest123",
-    "bard": "music456",
-    "test": "test",
-    "demo": "demo",
-}
+
+def get_valid_credentials() -> dict[str, str]:
+    """Parse credentials from environment variable."""
+    settings = get_settings()
+    credentials = {}
+    for pair in settings.demo_credentials.split(","):
+        if ":" in pair:
+            user, password = pair.split(":", 1)
+            credentials[user.strip().lower()] = password.strip()
+    return credentials
 
 
 class AuthHandler:
@@ -49,7 +52,8 @@ class AuthHandler:
             return False, auth_failed_message("Username and password are required"), None
 
         # Check credentials
-        expected_password = VALID_CREDENTIALS.get(username.lower())
+        valid_credentials = get_valid_credentials()
+        expected_password = valid_credentials.get(username.lower())
         if expected_password is None or password != expected_password:
             logger.warning(f"Failed login attempt for user: {username}")
             return False, auth_failed_message("Invalid username or password"), None
@@ -63,7 +67,11 @@ class AuthHandler:
             player_result = player_service.get_or_create(player_id, name=username)
 
             if player_result.is_err:
-                return False, auth_failed_message(f"Failed to create player: {player_result.error}"), None
+                return (
+                    False,
+                    auth_failed_message(f"Failed to create player: {player_result.error}"),
+                    None,
+                )
 
             player = player_result.unwrap()
             player_data = {
@@ -324,7 +332,9 @@ class MessageHandler:
             if loc_result.is_ok:
                 location_info = loc_result.unwrap()
                 loc = location_info.get("location", {})
-                lines.append(f"Current Location: {loc.get('name', 'Unknown')} ({loc.get('location_type', 'unknown')})")
+                lines.append(
+                    f"Current Location: {loc.get('name', 'Unknown')} ({loc.get('location_type', 'unknown')})"
+                )
 
                 # Uncollected segments at this location
                 uncollected = location_info.get("uncollected_segments", [])

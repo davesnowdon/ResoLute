@@ -279,9 +279,7 @@ def get_random_exercise(
 
 def get_default_song(session: Session) -> Song | None:
     """Get the default final song."""
-    result = session.execute(
-        select(Song).where(Song.is_final_song.is_(True)).limit(1)
-    )
+    result = session.execute(select(Song).where(Song.is_final_song.is_(True)).limit(1))
     return result.scalar_one_or_none()
 
 

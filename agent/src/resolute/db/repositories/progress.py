@@ -14,9 +14,7 @@ class ProgressRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def get(
-        self, player_id: str, progress_type: str, reference_id: int
-    ) -> PlayerProgress | None:
+    def get(self, player_id: str, progress_type: str, reference_id: int) -> PlayerProgress | None:
         """Get a specific progress entry."""
         result = self.session.execute(
             select(PlayerProgress)
@@ -26,9 +24,7 @@ class ProgressRepository:
         )
         return result.scalar_one_or_none()
 
-    def get_segment_progress(
-        self, player_id: str, segment_id: int
-    ) -> PlayerProgress | None:
+    def get_segment_progress(self, player_id: str, segment_id: int) -> PlayerProgress | None:
         """Get progress for a specific segment."""
         return self.get(player_id, ProgressType.SEGMENT.value, segment_id)
 
@@ -73,9 +69,7 @@ class ProgressRepository:
         if not collected_ids:
             return []
 
-        result = self.session.execute(
-            select(SongSegment).where(SongSegment.id.in_(collected_ids))
-        )
+        result = self.session.execute(select(SongSegment).where(SongSegment.id.in_(collected_ids)))
         return list(result.scalars().all())
 
     def count_collected_segments(self, player_id: str) -> int:

@@ -81,7 +81,7 @@ func _request_game_data() -> void:
 
 func update_location_display() -> void:
 	var loc = location_data.get("location", {})
-	location_name.text = "🏰 " + loc.get("name", "Unknown Location")
+	location_name.text = " " + loc.get("name", "Unknown Location")
 	location_desc.text = loc.get("description", "A mysterious place...")
 	
 	# Mentor message - could come from location or be generated
@@ -99,13 +99,13 @@ func update_player_stats() -> void:
 	var gold = player_data.get("gold", 0)
 	var reputation = player_data.get("reputation", 0)
 	
-	player_name_label.text = "🎭 Name: " + str(name)
-	level_label.text = "⭐ Level: " + str(level)
-	experience_label.text = "✨ XP: " + str(xp) + " / " + str(xp_needed)
+	player_name_label.text = " Name: " + str(name)
+	level_label.text = "Level: " + str(level)
+	experience_label.text = " XP: " + str(xp) + " / " + str(xp_needed)
 	
 	# Show collected segments count
 	var segments_count = len(collected_segments)
-	songs_learned_label.text = "🎵 Fragments: " + str(segments_count) + " / " + str(total_segments)
+	songs_learned_label.text = "Fragments: " + str(segments_count) + " / " + str(total_segments)
 
 
 func update_fragment_list() -> void:
@@ -124,7 +124,7 @@ func update_fragment_list() -> void:
 			var label = Label.new()
 			var seg_name = segment.get("name", "Unknown Fragment")
 			var seg_desc = segment.get("description", "")
-			label.text = "📜 " + seg_name
+			label.text = " " + seg_name
 			if not seg_desc.is_empty():
 				label.tooltip_text = seg_desc
 			label.add_theme_font_size_override("font_size", 13)
@@ -184,12 +184,12 @@ func _on_message_received(msg_type: String, content: String, data: Dictionary) -
 		
 		"error":
 			print("[Location] Error: ", content)
-			mentor_message.text = "⚠️ " + content
+			mentor_message.text = "! " + content
 
 
 func _on_websocket_error(message: String) -> void:
 	print("[Location] WebSocket error: ", message)
-	mentor_message.text = "⚠️ Connection error: " + message
+	mentor_message.text = "! Connection error: " + message
 
 
 func _on_websocket_disconnected() -> void:
